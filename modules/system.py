@@ -777,6 +777,8 @@ def messageChunker(message):
                 part = part.strip()
                 # remove empty parts
                 if not part:
+                    if message_list and message_list[-1] != '---':
+                        message_list.append('---')
                     continue
                 # if part is under the MESSAGE_CHUNK_SIZE, add it to the list
                 if len(part) < MESSAGE_CHUNK_SIZE:
@@ -823,7 +825,10 @@ def messageChunker(message):
             # Consolidate any adjacent messages that can fit in a single chunk.
             idx = 0
             while idx < len(message_list) - 1:
-                if len(message_list[idx]) + len(message_list[idx+1]) < MESSAGE_CHUNK_SIZE:
+                if message_list[idx] == '---' or message_list[idx+1] == '---' \
+                        or message_list[idx].endswith(':') or message_list[idx+1].endswith(':'):
+                    idx += 1
+                elif len(message_list[idx]) + len(message_list[idx+1]) < MESSAGE_CHUNK_SIZE:
                     message_list[idx] += '\n' + message_list[idx+1]
                     del message_list[idx+1]
                 else:
