@@ -1,0 +1,54 @@
+2026-05-20 12:19:49,061 | Device:1 Channel:1 | WB3IHY T-1000E | Good morning.
+2026-05-20 12:20:52,359 | Device:1 Channel:1 | TGIFMESH  | Good morning.
+2026-05-20 12:22:26,228 | Device:1 Channel:1 | WB3IHY T-1000E | How goes it, Kirk?
+2026-05-20 12:25:05,890 | Device:1 Channel:1 | TGIFMESH  | Just getting started here, how are you doing? Going to work on a backup node for 12v just incase.
+2026-05-20 12:29:17,329 | Device:1 Channel:1 | TGIFMESH  | Got to find my regulators drop to 5V.
+2026-05-20 12:50:57,046 | Device:1 Channel:1 | WB3IHY T-1000E | You can never have too many "extra" nodes, lol.
+2026-05-20 12:51:33,448 | Device:1 Channel:1 | WB3IHY T-1000E | "Just in case" is my use case, lol.
+2026-05-20 12:56:09,022 | Device:1 Channel:1 | NP4M  | Just woke up 
+2026-05-20 12:56:18,349 | Device:1 Channel:1 | NP4M  | Good morning 
+2026-05-20 13:27:39,659 | Device:1 Channel:1 | K4WZV | Good morning
+2026-05-20 13:35:49,274 | Device:1 Channel:1 | WB3IHY T-1000E | Gonna be another hot one.
+2026-05-20 13:38:37,759 | Device:1 Channel:1 | K4WZV | yep, same here
+2026-05-20 14:11:50,143 | Device:1 Channel:1 | WB3IHY T-1000E | Whatever happened to W4THM? Is he still Meshactive?
+2026-05-20 14:53:28,722 | Device:1 Channel:1 | K4WZV | Not sure, have not heard him
+2026-05-20 19:07:44,599 | Device:1 Channel:1 | NP4M T1000E | I’m hot 🥵 
+2026-05-20 19:22:58,786 | Device:1 Channel:1 | K4WZV | It is very hot
+2026-05-20 19:58:31,138 | Device:1 Channel:1 | WB3IHY MQTT Gateway | Same here.  But the cold front is on the way, along with heavy storms.  We'll be in the 50's-60's afterwards.
+2026-05-20 20:00:31,712 | Device:1 Channel:1 | WB3IHY MQTT Gateway | Just madee a change to the bot.  It will now number longer messages that are split across several so you'll know how many are coming and whether you missed any.
+2026-05-20 20:01:05,913 | Device:1 Channel:1 | WB3IHY MQTT Gateway | It's coding Wednesday here at the WB3IHY QTH.
+2026-05-20 20:32:27,920 | Device:1 Channel:2 | WB3IHY T-1000E | Alpha
+2026-05-20 20:33:12,852 | Device:1 Channel:2 | WB3IHY T-1000E | Beta
+2026-05-20 20:33:28,695 | Device:1 Channel:2 | WB3IHY MQTT Gateway | Beta
+2026-05-20 22:48:28,403 | Device:1 Channel:2 | WB3IHY T-1000E | Gamma
+2026-05-20 22:48:42,343 | Device:1 Channel:2 | WB3IHY MQTT Gateway | Gamma Return
+2026-05-20 22:49:17,744 | Device:1 Channel:2 | WB3IHY T-1000E | Delta
+2026-05-20 22:49:32,687 | Device:1 Channel:2 | WB3IHY MQTT Gateway | Delta return
+2026-05-20 22:49:49,737 | Device:1 Channel:2 | WB3IHY MQTT Gateway | 2
+2026-05-20 22:49:53,046 | Device:1 Channel:2 | WB3IHY MQTT Gateway | 3
+2026-05-20 22:49:55,152 | Device:1 Channel:2 | WB3IHY MQTT Gateway | 4
+2026-05-20 22:50:05,193 | Device:1 Channel:2 | WB3IHY T-1000E | 1
+2026-05-20 23:05:30,468 | Device:1 Channel:2 | WB3IHY T-1000E | Send1
+2026-05-20 23:05:40,597 | Device:1 Channel:2 | WB3IHY MQTT Gateway | Sendback1
+2026-05-20 23:06:04,567 | Device:1 Channel:2 | WB3IHY T-1000E | Send2
+2026-05-20 23:06:10,585 | Device:1 Channel:2 | WB3IHY MQTT Gateway | Sendback2
+2026-05-20 23:06:19,816 | Device:1 Channel:2 | WB3IHY T-1000E | Send3
+2026-05-20 23:06:28,847 | Device:1 Channel:2 | WB3IHY MQTT Gateway | Sendback3
+2026-05-20 23:06:49,205 | Device:1 Channel:2 | WB3IHY MQTT Gateway | Sendback4
+2026-05-20 23:10:52,531 | Device:1 Channel:2 | WB3IHY T-1000E | Send Alpha
+2026-05-20 23:11:03,161 | Device:1 Channel:2 | WB3IHY MQTT Gateway | Send Alpha Return
+2026-05-20 23:11:55,708 | Device:1 Channel:2 | WB3IHY MQTT Gateway | Send again
+2026-05-20 23:12:01,727 | Device:1 Channel:2 | WB3IHY MQTT Gateway | And again
+2026-05-20 23:12:05,538 | Device:1 Channel:2 | WB3IHY MQTT Gateway | and again
+2026-05-20 23:12:17,877 | Device:1 Channel:2 | WB3IHY T-1000E | Bump
+2026-05-20 23:12:49,868 | Device:1 Channel:2 | WB3IHY T-1000E | Bump2
+2026-05-20 23:44:08,396 | Device:1 Channel:2 | WB3IHY T-1000E | Send 1
+2026-05-20 23:44:15,618 | Device:1 Channel:2 | WB3IHY T-1000E | Send 2
+2026-05-20 23:44:23,341 | Device:1 Channel:2 | WB3IHY T-1000E | Send 3
+2026-05-20 23:44:23,943 | Device:1 Channel:2 | WB3IHY T-1000E | Send 4
+2026-05-20 23:44:33,871 | Device:1 Channel:2 | WB3IHY MQTT Gateway | Send back 1
+2026-05-20 23:44:41,593 | Device:1 Channel:2 | WB3IHY MQTT Gateway | Send Back 2
+2026-05-20 23:44:46,707 | Device:1 Channel:2 | WB3IHY MQTT Gateway | Send Back 3
+2026-05-20 23:44:53,931 | Device:1 Channel:2 | WB3IHY MQTT Gateway | Send Back 4
+2026-05-20 23:45:04,662 | Device:1 Channel:2 | WB3IHY T-1000E | Send 5
+2026-05-20 23:45:12,484 | Device:1 Channel:2 | WB3IHY MQTT Gateway | Send back 5

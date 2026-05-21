@@ -1,0 +1,24 @@
+2026-05-17 04:35:36,864 | Device:1 Channel:1 | K4WZV | 0
+2026-05-17 09:48:58,838 | Device:1 Channel:1 | K4WZV | Good morning
+2026-05-17 11:47:59,212 | Device:1 Channel:1 | WB3IHY T-1000E | Good morning. You're up early.
+2026-05-17 12:32:55,884 | Device:1 Channel:1 | WB3IHY T-1000E | I see that Kirk has joined the Mesh...as "TGIFMESH" LOL!
+2026-05-17 12:34:23,442 | Device:1 Channel:1 | K4WZV | Very nice
+2026-05-17 12:36:04,838 | Device:1 Channel:1 | WB3IHY T-1000E | Do you see his node in your node list yet?
+2026-05-17 12:36:18,077 | Device:1 Channel:1 | K4WZV | Not yet
+2026-05-17 12:37:00,901 | Device:1 Channel:1 | WB3IHY T-1000E | Took me by surprise when I saw TGIFMESH as a node...thought it was a glitch in my node database, lol!
+2026-05-17 12:37:52,953 | Device:1 Channel:1 | K4WZV | That's to funny
+2026-05-17 12:37:53,556 | Device:1 Channel:1 | WB3IHY T-1000E | Let's try something...try importing this: https://meshtastic.org/v/#CKyOqVYSUAoJITBhY2E0NzJjEhBUR0lGTUVTSCAgKE1RVFQpGgNCSkEiBuj2CspHLChuQiAy-T1u3bptFGEgUNd8reMPyqerb3k3G9rPrQK9SjY4XUgA
+2026-05-17 12:39:00,647 | Device:1 Channel:1 | K4WZV | import on my node?
+2026-05-17 12:39:28,730 | Device:1 Channel:1 | WB3IHY T-1000E | Yup. That should give you his node on your list.
+2026-05-17 12:42:01,876 | Device:1 Channel:1 | WB3IHY T-1000E | Off to breakfast. Be back in a bit.
+2026-05-17 13:21:57,583 | Device:1 Channel:1 | WB3IHY T-1000E | Mmmm...bagel and scrambled eggs. And yes, Noel...made on a cast iron pan. Nothing stuck!
+2026-05-17 14:12:17,739 | Device:1 Channel:1 | K4WZV | very nice
+2026-05-17 14:13:23,625 | Device:1 Channel:1 | K4WZV | Wife went to pick up our usual Sunday breakfast Bob Evans
+2026-05-17 14:24:00,693 | Device:1 Channel:1 | WB3IHY MQTT Gateway | Yum.  That's good stuff.  Been a while for us on that front.
+2026-05-17 15:04:10,922 | Device:1 Channel:1 | K4WZV | .
+2026-05-17 15:11:41,200 | Device:1 Channel:1 | WB3IHY MQTT Gateway | ?
+2026-05-17 19:39:24,199 | Device:1 Channel:1 | NP4M T1000E | What is going on here?
+2026-05-17 20:04:18,648 | Device:1 Channel:1 | WB3IHY MQTT Gateway | Hellooooo Mesh.
+2026-05-17 23:10:59,662 | Device:1 Channel:1 | NP4M  | Where are you?
+2026-05-17 23:11:09,597 | Device:1 Channel:1 | NP4M  | Come to poke radio 
+2026-05-17 23:11:39,488 | Device:1 Channel:1 | NP4M  | Is working 

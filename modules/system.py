@@ -128,12 +128,35 @@ if coastalEnabled:
         
 # BBS Configuration
 if bbs_enabled:
-    from modules.bbstools import * # from the spudgunman/meshing-around repo
-    trap_list = trap_list + trap_list_bbs # items bbslist, bbspost, bbsread, bbsdelete, bbshelp
-    help_message = help_message + ", bbslist, bbshelp"
-else:
-    bbs_help = False
-    bbs_list_messages = False
+    from modules.bbs.db import initialize_database, set_db_path, is_banned
+    from modules.bbs.commands import (
+        handle_bbs_help, handle_bbs_list, handle_bbs_post,
+        handle_bbs_read, handle_bbs_delete, handle_bbs_dm,
+        handle_bbs_check_mail, handle_bbs_read_mail, handle_bbs_delete_mail,
+        handle_bbs_chan, handle_bbs_add_chan, handle_bbs_info, handle_bbs_boards,
+        handle_quick_send_mail, handle_quick_check_mail,
+        handle_quick_post_bulletin, handle_quick_check_bulletin,
+    )
+    from modules.bbs.admin import (
+        require_admin, handle_admin_help, handle_admin_add, handle_admin_remove,
+        handle_admin_list, handle_ban, handle_unban, handle_ban_list,
+        handle_bulletin_delete, handle_mail_delete, handle_channel_delete,
+        handle_bbs_stats,
+    )
+    from modules.bbs.menu import handle_menu_message
+    from modules.bbs.state import is_in_menu
+    # BBS trap list — command-style keywords
+    trap_list_bbs = (
+        "bbshelp", "bbslist", "bbspost", "bbsread", "bbsdelete",
+        "bbsinfo", "bbsboards", "bbsdm", "bbscheckim", "bbsreadm",
+        "bbsdelm", "bbschan", "bbsaddchan",
+        "sm,,", "cm", "pb,,", "cb,,",
+        "adminadd", "adminremove", "adminlist",
+        "ban", "unban", "banlist",
+        "maildelete", "chandel", "bbsstats",
+    )
+    trap_list = trap_list + trap_list_bbs
+    help_message = help_message + ", bbslist, bbshelp, HELP(menu)"
 
 # Dad Jokes Configuration
 if dad_jokes_enabled:
@@ -857,6 +880,14 @@ def messageChunker(message):
     except Exception as e:
         logger.warning(f"System: Exception during message chunking: {e} (message length: {len(message)})")
         
+def get_interface(deviceID=1):
+    """Return the interface object for a given deviceID (1-9)."""
+    try:
+        iface = globals().get(f'interface{int(deviceID)}')
+        return iface
+    except Exception:
+        return globals().get('interface1')
+
 def send_message(message, ch, nodeid=0, nodeInt=1, bypassChuncking=False, reply_id=None):
     # Send a message to a channel or DM
     interface = globals()[f'interface{nodeInt}']
@@ -1203,64 +1234,6 @@ def isNodeAdmin(nodeID):
                 return True
     return False
 
-def isNodeBanned(nodeID):
-    # check if the nodeID is in the bbs_ban_list
-    for banned in bbs_ban_list:
-        if str(nodeID) == banned:
-            return True
-    return False
-
-def handle_bbsban(message, message_from_id, isDM):
-    global bbs_ban_list
-    msg = ""
-    if not isDM:
-        return "🤖only available in a Direct Message📵"
-    if not isNodeAdmin(message_from_id):
-        return NO_ALERTS
-    if "?" in message:
-        return "Ban or unban a node from posting to the BBS. Example: bannode add 1234567890 or bannode remove 1234567890"
-
-    parts = message.lower().split()
-    if len(parts) < 2 or parts[0] != "bannode":
-        return "Please specify add, remove, or list. Example: bannode add 1234567890"
-
-    action = parts[1]
-
-    if action == "list":
-        load_bbsBanList()  # Always reload from file for latest list
-        if bbs_ban_list:
-            return "BBS Ban List:\n" + "\n".join(bbs_ban_list)
-        else:
-            return "The BBS ban list is currently empty."
-
-    if len(parts) < 3:
-        return "Please specify add or remove and a node number. Example: bannode add 1234567890"
-
-    node_id = parts[2].strip()
-    if not node_id.isdigit():
-        return "Invalid node number. Please provide a numeric node ID."
-
-    if action == "add":
-        if node_id not in bbs_ban_list:
-            bbs_ban_list.append(node_id)
-            save_bbsBanList()
-            logger.warning(f"System: {message_from_id} added {node_id} to the BBS ban list")
-            msg = f"Node {node_id} added to the BBS ban list"
-        else:
-            msg = f"Node {node_id} is already in the BBS ban list"
-    elif action == "remove":
-        if node_id in bbs_ban_list:
-            bbs_ban_list.remove(node_id)
-            save_bbsBanList()
-            logger.warning(f"System: {message_from_id} removed {node_id} from the BBS ban list")
-            msg = f"Node {node_id} removed from the BBS ban list"
-        else:
-            msg = f"Node {node_id} is not in the BBS ban list"
-    else:
-        msg = "Invalid action. Please use 'add', 'remove', or 'list'."
-
-    return msg
-
 def handleMultiPing(nodeID=0, deviceID=1):
     global multiPingList
     if len(multiPingList) > 1:
@@ -1430,12 +1403,12 @@ def compileFavoriteList(getInterfaceIDs=True):
 
     if not getInterfaceIDs:
         logger.debug(f"System:compileFavoriteList Compiling Favorite Node List for use on bot to save DM keys only")
-        if (bbs_admin_list != [0] or favoriteNodeList != ['']) or bbs_link_whitelist != [0]:
+        if (bbs_admin_list != [0] or favoriteNodeList != ['']) :
             logger.debug(f"System: Collecting Favorite Nodes to add to device(s)")
             # loop through each interface and add the favorite nodes
             for i in range(1, 10):
                 if globals().get(f'interface{i}') and globals().get(f'interface{i}_enabled'):
-                    for fav in bbs_admin_list + favoriteNodeList + bbs_link_whitelist:
+                    for fav in bbs_admin_list + favoriteNodeList:
                         if fav != 0 and fav != '' and fav is not None:
                             object = {'nodeID': fav, 'deviceID': i}
                             # check object not already in the list
@@ -2508,9 +2481,6 @@ async def watchdog():
             await process_vox_queue()
         
         # check the load_bbsdm flag to reload the BBS messages from disk
-        if bbs_enabled and bbsAPI_enabled:
-            load_bbsdm()
-            load_bbsdb()
 
 def saveAllData():
     try:

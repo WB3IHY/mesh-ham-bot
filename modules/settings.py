@@ -88,7 +88,7 @@ if 'location' not in config:
     config.write(open(config_file, 'w'))
 
 if 'bbs' not in config:
-    config['bbs'] = {'enabled': 'False', 'bbsdb': 'data/bbsdb.pkl', 'bbs_ban_list': '', 'bbs_admin_list': ''}
+    config['bbs'] = {'enabled': 'False', 'bbsdb': 'data/bbs.db', 'bbs_admin_list': ''}
     config.write(open(config_file, 'w'))
 
 if 'repeater' not in config:
@@ -373,12 +373,8 @@ try:
 
     # bbs
     bbs_enabled = config['bbs'].getboolean('enabled', False)
-    bbsdb = config['bbs'].get('bbsdb', 'data/bbsdb.pkl')
-    bbs_ban_list = config['bbs'].get('bbs_ban_list', '').split(',')
+    bbsdb = config['bbs'].get('bbsdb', 'data/bbs.db')
     bbs_admin_list = config['bbs'].get('bbs_admin_list', '').split(',')
-    bbs_link_enabled = config['bbs'].getboolean('bbslink_enabled', False)
-    bbs_link_whitelist = config['bbs'].get('bbslink_whitelist', '').split(',')
-    bbsAPI_enabled = config['bbs'].getboolean('bbsAPI_enabled', False)
     
     # checklist
     checklist_enabled = config['checklist'].getboolean('enabled', False)

@@ -1,0 +1,10 @@
+2026-05-15 13:12:38,928 | Device:1 Channel:1 | WB3IHY MQTT Gateway | Crashed last night.  Restarted and did some prelim stuff but now off to breakfast.  Will hunt down what happened afterwards.
+2026-05-15 14:18:26,930 | Device:1 Channel:1 | WB3IHY MQTT Gateway | Okay...Bot should be fixed now guys.  Observer effect! I'd changed the way I was monitoring the server and ended up overwhelming it with requests...which the bot couldn't handle.  Fixed that.  It should be stable now.
+2026-05-15 14:24:41,411 | Device:1 Channel:1 | K4WZV | Thanks Joe
+2026-05-15 14:24:58,763 | Device:1 Channel:1 | K4WZV | Hope you are having a good day
+2026-05-15 14:29:47,197 | Device:1 Channel:1 | WB3IHY MQTT Gateway | So far, so good.  Thanks.  Good breakfast, fixed the bot.  Next up: Cut the lawns.  Replace the cheap plastic solar path lights that the neighbor kids keep knocking down with solid steel ones! Break their toes ones, LOL
+2026-05-15 14:50:57,380 | Device:1 Channel:1 | K4WZV | Sounds good. We have been trying to cut Zues's nails. Freaking impossiable
+2026-05-15 14:51:30,882 | Device:1 Channel:1 | K4WZV | He keeps fighting us
+2026-05-15 14:52:26,441 | Device:1 Channel:1 | K4WZV | You take him to the vet and he is happy to get them done
+2026-05-15 15:20:38,592 | Device:1 Channel:1 | NP4M T1000E | So far so good 
+2026-05-15 22:48:12,789 | Device:1 Channel:1 | K4WZV | connected

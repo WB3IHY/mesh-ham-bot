@@ -15,6 +15,29 @@ from modules.log import logger, CustomFormatter, msgLogger, getPrettyTime
 import modules.settings as my_settings
 from modules.system import *
 
+# BBS imports — loaded conditionally to match bbs_enabled setting
+if my_settings.bbs_enabled:
+    from modules.bbs.db import is_banned, add_mail
+    from modules.bbs.menu import handle_menu_message
+    from modules.bbs.commands import (
+        handle_bbs_help, handle_bbs_list, handle_bbs_post,
+        handle_bbs_read, handle_bbs_delete, handle_bbs_dm,
+        handle_bbs_check_mail, handle_bbs_read_mail, handle_bbs_delete_mail,
+        handle_bbs_chan, handle_bbs_add_chan, handle_bbs_info, handle_bbs_boards,
+        handle_quick_send_mail, handle_quick_check_mail,
+        handle_quick_post_bulletin, handle_quick_check_bulletin,
+    )
+    from modules.bbs.admin import (
+        require_admin, handle_admin_help, handle_admin_add, handle_admin_remove,
+        handle_admin_list, handle_ban, handle_unban, handle_ban_list,
+        handle_bulletin_delete, handle_mail_delete, handle_channel_delete,
+        handle_bbs_stats,
+    )
+else:
+    # Stubs so references in non-BBS code paths don't crash
+    def is_banned(node_id): return False
+    def handle_menu_message(message, node_id, interface): return False
+
 # list of commands to remove from the default list for DM only
 restrictedCommands = ["blackjack", "videopoker", "dopewars", "lemonstand", "golfsim", "mastermind", "hangman", "hamtest", "tictactoe", "tic-tac-toe", "quiz", "q:", "survey", "s:", "battleship"]
 restrictedResponse = "🤖only available in a Direct Message📵" # "" for none
@@ -30,16 +53,33 @@ def auto_response(message, snr, rssi, hop, pkiStatus, message_from_id, channel_n
     "ack": lambda: handle_ping(message_from_id, deviceID, message, hop, snr, rssi, isDM, channel_number),
     "ask:": lambda: handle_llm(message_from_id, channel_number, deviceID, message, publicChannel),
     "askai": lambda: handle_llm(message_from_id, channel_number, deviceID, message, publicChannel),
-    "bannode": lambda: handle_bbsban(message, message_from_id, isDM),
     "battleship": lambda: handleBattleship(message, message_from_id, deviceID),
-    "bbsack": lambda: bbs_sync_posts(message, message_from_id, deviceID),
-    "bbsdelete": lambda: handle_bbsdelete(message, message_from_id),
-    "bbshelp": bbs_help,
-    "bbsinfo": lambda: get_bbs_stats(),
-    "bbslink": lambda: bbs_sync_posts(message, message_from_id, deviceID),
-    "bbslist": bbs_list_messages,
-    "bbspost": lambda: handle_bbspost(message, message_from_id, deviceID),
-    "bbsread": lambda: handle_bbsread(message),
+    "bbshelp": lambda: handle_bbs_help(message_from_id),
+    "bbsinfo": lambda: handle_bbs_info(),
+    "bbsboards": lambda: handle_bbs_boards(),
+    "bbslist": lambda: handle_bbs_list(message, message_from_id),
+    "bbspost": lambda: handle_bbs_post(message, message_from_id, get_name_from_number(message_from_id, 'short', deviceID)),
+    "bbsread": lambda: handle_bbs_read(message, message_from_id),
+    "bbsdelete": lambda: handle_bbs_delete(message, message_from_id),
+    "bbsdm": lambda: handle_bbs_dm(message, message_from_id, get_name_from_number(message_from_id, 'short', deviceID), get_interface(deviceID)),
+    "bbscheckim": lambda: handle_bbs_check_mail(message_from_id),
+    "bbsreadm": lambda: handle_bbs_read_mail(message, message_from_id),
+    "bbsdelm": lambda: handle_bbs_delete_mail(message, message_from_id),
+    "bbschan": lambda: handle_bbs_chan(message_from_id),
+    "bbsaddchan": lambda: handle_bbs_add_chan(message, message_from_id, get_name_from_number(message_from_id, 'short', deviceID)),
+    "sm,,": lambda: handle_quick_send_mail(message, message_from_id, get_name_from_number(message_from_id, 'short', deviceID), get_interface(deviceID)),
+    "cm": lambda: handle_quick_check_mail(message_from_id),
+    "pb,,": lambda: handle_quick_post_bulletin(message, message_from_id, get_name_from_number(message_from_id, 'short', deviceID)),
+    "cb,,": lambda: handle_quick_check_bulletin(message, message_from_id),
+    "adminadd": lambda: handle_admin_add(message, message_from_id) if require_admin(message_from_id) else "Not authorized.",
+    "adminremove": lambda: handle_admin_remove(message, message_from_id) if require_admin(message_from_id) else "Not authorized.",
+    "adminlist": lambda: handle_admin_list() if require_admin(message_from_id) else "Not authorized.",
+    "ban": lambda: handle_ban(message, message_from_id) if require_admin(message_from_id) else "Not authorized.",
+    "unban": lambda: handle_unban(message, message_from_id) if require_admin(message_from_id) else "Not authorized.",
+    "banlist": lambda: handle_ban_list() if require_admin(message_from_id) else "Not authorized.",
+    "bbsstats": lambda: handle_bbs_stats() if require_admin(message_from_id) else "Not authorized.",
+    "maildelete": lambda: handle_mail_delete(message, message_from_id) if require_admin(message_from_id) else "Not authorized.",
+    "chandel": lambda: handle_channel_delete(message, message_from_id) if require_admin(message_from_id) else "Not authorized.",
     "blackjack": lambda: handleBlackJack(message, message_from_id, deviceID),
     "approvecl": lambda: handle_checklist(message, message_from_id, deviceID),
     "denycl": lambda: handle_checklist(message, message_from_id, deviceID),
@@ -305,11 +345,10 @@ def handle_ping(message_from_id, deviceID,  message, hop, snr, rssi, isDM, chann
             toNode = get_num_from_short_name(toNode, deviceID)
             if toNode and isinstance(toNode, int) and toNode != 0:
                 if my_settings.bbs_enabled:
-                    msg_result = None
-                    logger.debug(f"System: Sending ping as BBS DM to @{toNode} from {get_name_from_number(message_from_id, 'short', deviceID)}")
-                    msg_result = bbs_post_dm(toNode, f"Joke for you! {tell_joke()}", message_from_id)
-                    # exit the function
-                    return msg_result if msg_result else logger.warning(f"System: ping @nodeID detected but no BBS to send with, enable BBS in settings.ini")
+                    logger.debug(f"System: Sending joke as BBS mail to @{toNode} from {get_name_from_number(message_from_id, 'short', deviceID)}")
+                    short_name = get_name_from_number(message_from_id, 'short', deviceID)
+                    add_mail(str(message_from_id), short_name, str(toNode), "Joke for you!", tell_joke())
+                    return f"Joke sent to {get_name_from_number(toNode, 'short', deviceID)} via BBS mail!"
 
     elif "#" in message:
         msg = msg + " #" + message.split("#")[1]
@@ -366,8 +405,8 @@ def handle_alertBell(message_from_id, deviceID, message):
 
 def handle_emergency(message_from_id, deviceID, message):
     myNodeNum = globals().get(f'myNodeNum{deviceID}', 777)
-    # if user in bbs_ban_list return
-    if str(message_from_id) in my_settings.bbs_ban_list:
+    # if user is banned return
+    if my_settings.bbs_enabled and is_banned(message_from_id):
         # silent discard
         hammer_value = ban_hammer(message_from_id, deviceID, reason="Emergency Alert from banned node")
         logger.warning(f"System: {message_from_id} on spam list, no emergency responder alert sent. Ban hammer value: {hammer_value}")
@@ -1398,56 +1437,7 @@ def handle_inventory(message, message_from_id, deviceID):
     name = get_name_from_number(message_from_id, 'short', deviceID)
     return process_inventory_command(message_from_id, message, name)
 
-def handle_bbspost(message, message_from_id, deviceID):
-    if "$" in message and not "example:" in message:
-        subject = message.split("$")[1].split("#")[0]
-        subject = subject.rstrip()
-        if "#" in message:
-            body = message.split("#", 1)[1]
-            body = body.rstrip()
-            logger.info(f"System: BBS Post: {subject} Body: {body}")
-            return bbs_post_message(subject, body, message_from_id)
-        elif not "example:" in message:
-            return "example: bbspost $subject #✉️message"
-    elif "@" in message and not "example:" in message:
-        toNode = message.split("@")[1].split("#")[0]
-        toNode = toNode.rstrip()
-        if toNode.startswith("!") and len(toNode) == 9:
-            # mesh !hex
-            try:
-                toNode = int(toNode.strip("!"),16)
-            except ValueError as e:
-                toNode = 0
-        elif toNode.isalpha() or not toNode.isnumeric() or len(toNode) < 5:
-            # try short name
-            toNode = get_num_from_short_name(toNode, deviceID)
-
-        if "#" in message:
-            if toNode == 0:
-                return "Node not found " + message.split("@")[1].split("#")[0]
-            body = message.split("#", 1)[1]
-            body = body.rstrip()
-            logger.info(f"System: BBS Post DM to: {toNode} Body: {body}")
-            return bbs_post_dm(toNode, body, message_from_id)
-        else:
-            return "example: bbspost @nodeNumber/ShortName/!hex #✉️message"
-    elif not "example:" in message:
-        return "example: bbspost $subject #✉️message, or bbspost @node #✉️message"
-
-def handle_bbsread(message):
-    if "#" in message and not "example:" in message:
-        messageID = int(message.split("#")[1])
-        return bbs_read_message(messageID)
-    elif not "example:" in message:
-        return "Please add a ✉️message number example: bbsread #14"
-
-def handle_bbsdelete(message, message_from_id):
-    if "#" in message and not "example:" in message:
-        messageID = int(message.split("#")[1])
-        return bbs_delete_message(messageID, message_from_id)
-    elif not "example:" in message:
-        return "Please add a ✉️message number example: bbsdelete #14"
-
+# handle_bbspost, handle_bbsread, handle_bbsdelete removed -- replaced by modules/bbs/
 def handle_messages(message, deviceID, channel_number, msg_history, publicChannel, isDM):
     if  "?" in message and isDM:
         return message.split("?")[0].title() + " command returns the last " + str(storeFlimit) + " messages sent on a channel."
@@ -1725,13 +1715,10 @@ def handle_boot(mesh=True):
                     logger.debug(f"System: Bad response from LLM: {llmLoad}")
 
             if my_settings.bbs_enabled:
-                logger.debug(f"System: BBS Enabled, {bbsdb} has {len(bbs_messages)} messages. Direct Mail Messages waiting: {(len(bbs_dm) - 1)}")
-                if my_settings.bbs_link_enabled:
-                    if len(bbs_link_whitelist) > 0:
-                        logger.debug(f"System: BBS Link Enabled with {len(bbs_link_whitelist)} peers")
-                    else:
-                        logger.debug(f"System: BBS Link Enabled allowing all")
-            
+                from modules.bbs.db import initialize_database, set_db_path
+                set_db_path(my_settings.bbsdb)
+                initialize_database(seed_admins=my_settings.bbs_admin_list)
+                logger.debug(f"System: BBS Enabled, SQLite db ready at {my_settings.bbsdb}")
             if my_settings.solar_conditions_enabled:
                 logger.debug("System: Celestial Telemetry Enabled")
 
@@ -1812,7 +1799,7 @@ def handle_boot(mesh=True):
 
         if my_settings.autoBanEnabled:
             logger.debug(f"System: Auto-Ban Enabled for {my_settings.autoBanThreshold} messages in {my_settings.autoBanTimeframe} seconds")
-            load_bbsBanList()
+            pass  # ban list now managed in BBS SQLite db
 
         if my_settings.log_messages_to_file:
             logger.debug("System: Logging Messages to disk")
@@ -1982,17 +1969,13 @@ def onReceive(packet, interface):
             if node.get('nodeID') == message_from_id:
                 node['lastSeen'] = time.time()
                 break
-    # BBS DM MAIL CHECKER
-    if bbs_enabled and decoded:
-        msg = bbs_check_dm(message_from_id)
-        if msg:
-            logger.info(f"System: BBS DM Delivery: {msg[1]} For: {get_name_from_number(message_from_id, 'long', rxNode)}")
-            message = "Mail: " + msg[1] + "  From: " + get_name_from_number(msg[2], 'long', rxNode)
-            bbs_delete_dm(msg[0], msg[1])
-            send_message(message, channel_number, message_from_id, rxNode)
+    # BBS MENU HANDLER — intercept menu-mode messages before command dispatch
+    if bbs_enabled and decoded and isDM:
+        if handle_menu_message(message, message_from_id, get_interface(rxNode)):
+            return
 
     # CHECK with ban_hammer() if the node is banned
-    if str(message_from_id) in my_settings.bbs_ban_list or str(message_from_id) in my_settings.autoBanlist:
+    if (my_settings.bbs_enabled and is_banned(message_from_id)) or str(message_from_id) in my_settings.autoBanlist:
         logger.warning(f"System: Banned Node {message_from_id} tried to send a message. Ignored. Try adding to node firmware-blocklist")
         return
 
@@ -2163,7 +2146,7 @@ def onReceive(packet, interface):
                     # message is for us to respond to, or is it...
                     if my_settings.ignoreDefaultChannel and channel_number == my_settings.publicChannel:
                         logger.debug(f"System: Ignoring CMD:{message_log_string} From: {get_name_from_number(message_from_id, 'short', rxNode)} Default Channel:{channel_number}")
-                    elif str(message_from_id) in my_settings.bbs_ban_list:
+                    elif my_settings.bbs_enabled and is_banned(message_from_id):
                         logger.debug(f"System: Ignoring CMD:{message_log_string} From: {get_name_from_number(message_from_id, 'short', rxNode)} Cantankerous Node")
                     elif str(channel_number) in my_settings.ignoreChannels:
                         logger.debug(f"System: Ignoring CMD:{message_log_string} From: {get_name_from_number(message_from_id, 'short', rxNode)} Ignored Channel:{channel_number}")

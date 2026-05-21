@@ -1,0 +1,40 @@
+2026-05-19 12:14:52,699 | Device:1 Channel:1 | NP4M  | Good morning 
+2026-05-19 12:33:50,488 | Device:1 Channel:1 | K4WZV | Good morning
+2026-05-19 12:46:14,565 | Device:1 Channel:1 | WB3IHY MQTT Gateway | Good morning.
+2026-05-19 12:49:33,662 | Device:1 Channel:1 | NP4M  | What are we up to today?
+2026-05-19 12:51:47,261 | Device:1 Channel:1 | WB3IHY T-1000E | Breakfast, followed by Meshtastic client research and development. You?
+2026-05-19 12:52:16,647 | Device:1 Channel:1 | NP4M  | Work
+2026-05-19 12:53:04,787 | Device:1 Channel:1 | NP4M  | My mesh working good !! 
+2026-05-19 12:53:34,167 | Device:1 Channel:1 | K4WZV | Everything working good here now
+2026-05-19 12:54:04,152 | Device:1 Channel:1 | TGIFMESH  | Good morning all
+2026-05-19 12:54:38,557 | Device:1 Channel:1 | K4WZV | Good morning Kirk, welcome to the TGIF mesh
+2026-05-19 12:54:54,700 | Device:1 Channel:1 | WB3IHY T-1000E | 👍
+2026-05-19 12:54:58,913 | Device:1 Channel:1 | WB3IHY T-1000E | 👍
+2026-05-19 12:55:02,748 | Device:1 Channel:1 | WB3IHY T-1000E | 👍
+2026-05-19 12:55:15,869 | Device:1 Channel:1 | TGIFMESH  | Thanks
+2026-05-19 12:55:24,595 | Device:1 Channel:1 | WB3IHY T-1000E | Welcome Kirk!
+2026-05-19 12:56:27,777 | Device:1 Channel:1 | K4WZV | everything works so much better via serial
+2026-05-19 12:57:19,424 | Device:1 Channel:1 | TGIFMESH  | Still working on this one, dashboard online sucks 🤓
+2026-05-19 13:02:06,396 | Device:1 Channel:1 | NP4M  | Time for coffee ☕️ 
+2026-05-19 13:06:45,818 | Device:1 Channel:1 | NP4M T1000E | T1000 mobile
+2026-05-19 13:07:13,995 | Device:1 Channel:1 | NP4M T1000E | I love ❤️ my mesh devices 😆 
+2026-05-19 13:09:08,027 | Device:1 Channel:1 | K4WZV | Fun in the sun
+2026-05-19 13:10:26,771 | Device:1 Channel:1 | NP4M T1000E | Oh yea there’s no other way 
+2026-05-19 13:41:26,665 | Device:1 Channel:1 | WB3IHY T-1000E | The heat is on up here. Might reach 97 later on!
+2026-05-19 13:41:59,556 | Device:1 Channel:1 | K4WZV | wow, stay cool
+2026-05-19 13:42:30,449 | Device:1 Channel:1 | K4WZV | 80 degrees here going to 91
+2026-05-19 13:43:00,336 | Device:1 Channel:1 | TGIFMESH  | Thunderstorms here
+2026-05-19 13:43:17,386 | Device:1 Channel:1 | WB3IHY T-1000E | I'm gonna try and stay inside. It's already 81 here. Not even 10AM yet.
+2026-05-19 13:43:57,803 | Device:1 Channel:1 | K4WZV | 79% humidity
+2026-05-19 15:26:48,746 | Device:1 Channel:1 | WB3IHY MQTT Gateway | Robert, in TAPO, you might want to check out the Patrol feature under Pan and Tilt for patrolliung between several zones.
+2026-05-19 15:27:08,601 | Device:1 Channel:1 | WB3IHY MQTT Gateway | (patrolling)
+2026-05-19 15:28:09,074 | Device:1 Channel:1 | K4WZV | Thanks Joe. Will do
+2026-05-19 20:01:48,858 | Device:1 Channel:1 | WB3IHY MQTT Gateway | Robert, your shoofly tracking is: https://tools.usps.com/tracking/9405530109355381335859#
+2026-05-19 20:09:12,550 | Device:1 Channel:1 | WB3IHY MQTT Gateway | It shipped at 10:10AM and is expected to be at your door by 9PM Friday.  Unless Noel intercepts it, LOL.
+2026-05-19 20:10:15,145 | Device:1 Channel:1 | NP4M T1000E | And I will intercept!
+2026-05-19 20:10:29,287 | Device:1 Channel:1 | K4WZV | lol
+2026-05-19 20:20:17,753 | Device:1 Channel:1 | NP4M T1000E | You got it now
+2026-05-19 20:29:28,809 | Device:1 Channel:1 | K4WZV | Thanks so much joe
+2026-05-19 20:30:23,486 | Device:1 Channel:1 | WB3IHY MQTT Gateway | My pleasure, Robert. 
+2026-05-19 20:32:24,941 | Device:1 Channel:1 | K4WZV | We will have a live report on the TGIF net lol
+2026-05-19 22:24:36,937 | Device:1 Channel:1 | NP4M  | Back home 

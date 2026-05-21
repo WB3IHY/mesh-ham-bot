@@ -28,4 +28,11 @@ modules/custom_scheduler.py
 venv/
 
 # Python cache
+__pycache__/logs/
+config.ini.bak
+data/*.pkl
+data/*.db
+data/bbs_ban_list.txt
 __pycache__/
+*.pyc
+*.bak
