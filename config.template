@@ -79,28 +79,6 @@ kiwixURL = http://127.0.0.1:8080
 # Kiwix library name (e.g., wikipedia_en_100_nopic_2025-09)
 kiwixLibraryName = wikipedia_en_100_nopic_2025-09
 
-# Enable LLM local Ollama integration, set true for any LLM support
-ollama = False
-# Ollama server instance to use (defaults to local machine install)
-ollamaHostName = http://localhost:11434
-# Use OpenWebUI instead of direct Ollama API / still leave ollama = True
-useOpenWebUI = False
-openWebUIURL = http://localhost:3000
-# OpenWebUI API key/token (required when useOpenWebUI is True)
-openWebUIAPIKey = 
-
-# Ollama model to use (defaults to gemma3:270m) gemma2 is good for older SYSTEM prompt
-# ollamaModel is used for both Ollama and OpenWebUI when useOpenWebUI its just the model name
-# ollamaModel = gemma3:latest
-# ollamaModel = gemma2:2b
-# if True, the query is sent raw to the LLM, if False uses internal SYSTEM prompt
-rawLLMQuery = True
-
-# If False, the LLM only replies to the "ask:" and "askai" commands. otherwise DM's automatically go to LLM
-llmReplyToNonCommands = True
-# Enable Wikipedia/Kiwix integration with LLM for RAG (Retrieval Augmented Generation)
-# When enabled, LLM will automatically search Wikipedia/Kiwix and include context in responses
-llmUseWikiContext = False
 
 # StoreForward Enabled and Limits
 StoreForward = True
@@ -147,7 +125,6 @@ SentryEnabled = True
 # device interface and channel to send the alert message to
 SentryInterface = 1
 SentryChannel = 2
-emailSentryAlerts = False
 # Enable detection sensor alert, requires external GPIO sensor connected to node
 detectionSensorAlert = False
 
@@ -284,14 +261,6 @@ auto_approve = True
 # Check-in reminder interval is 5min
 # Checkin broadcast interface and channel is emergency_handler interface and channel
 
-# Inventory and Point of Sale System
-[inventory]
-enabled = False
-inventory_db = data/inventory.db
-# Set to True to disable penny precision and round to nickels (USA cash sales)
-# When True: cash sales round down, taxed sales round up to nearest $0.05
-# When False (default): normal penny precision ($0.01)
-disable_penny = False
 
 [qrz]
 # QRZ Hello to new nodes with message
@@ -412,60 +381,7 @@ twoFactor_enabled = True
 # time in seconds to wait for the correct 2FA answer
 twoFactor_timeout = 100
 
-[smtp]
-# enable or disable the SMTP module
-enableSMTP = False
-# enable or disable the IMAP module for inbound email
-enableImap = False
-# list of Sysop Emails seperate with commas
-sysopEmails =
-SMTP_SERVER = smtp.gmail.com
-# 587 SMTP over TLS/STARTTLS, 25 legacy SMTP, 465 SMTP over SSL
-SMTP_PORT = 587
-# Sender email: be mindful of public access, don't use your personal email
-FROM_EMAIL = none@gmail.com
-SMTP_AUTH = True
-SMTP_USERNAME = none@gmail.com
-SMTP_PASSWORD = none
-EMAIL_SUBJECT = Meshtastic✉️
 
-# IMAP not implimented yet
-IMAP_SERVER = imap.gmail.com
-# 993 IMAP over TLS/SSL, 143 legacy IMAP
-IMAP_PORT = 993
-# IMAP login usually same as SMTP
-IMAP_USERNAME = none@gmail.com
-IMAP_PASSWORD = none
-IMAP_FOLDER = inbox
-
-[games]
-# if hop limit for the user exceeds this value, the message will be dropped
-game_hop_limit = 5
-disable_emojis = False
-# enable or disable the games module(s)
-dopeWars = True
-lemonade = True
-blackjack = True
-videopoker = True
-mastermind = True
-golfsim = True
-hangman = True
-hamtest = True
-tictactoe = True
-wordOfTheDay = True
-battleShip = True
-
-# enable or disable the quiz game module questions are in data/quiz.json
-quiz = False
-
-# enable or disable the survey game module questions are in data/survey/*_survey.json
-survey = False
-# this is the default survey to use when command givcen, from data/survey/example_survey.json
-defaultSurvey = example
-# Whether to record user ID in responses
-surveyRecordID=True
-# Whether to record location on start of survey
-surveyRecordLocation=True
 
 [messagingSettings]
 # delay in seconds for response to avoid message collision /throttling

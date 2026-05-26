@@ -7,16 +7,13 @@ This document provides an overview of all modules available in the Mesh-Bot proj
 
 - [Overview](#overview)
 - [Networking](#networking)
-- [Games](#games)
 - [BBS (Bulletin Board System)](#bbs-bulletin-board-system)
 - [Checklist](#checklist)
-- [Inventory & Point of Sale](#inventory--point-of-sale)
 - [Location & Weather](#location--weather)
 - [EAS & Emergency Alerts](#eas--emergency-alerts)
 - [File Monitoring & News](#file-monitoring--news)
 - [Radio Monitoring](#radio-monitoring)
 - [Voice Commands (VOX)](#voice-commands-vox)
-- [Ollama LLM/AI](#ollama-llmai)
 - [Wikipedia Search](#wikipedia-search)
 - [News & Headlines (`latest` Command)](#news--headlines-latest-command)
 - [DX Spotter Module](#dx-spotter-module)
@@ -142,29 +139,6 @@ Use `ping?` in DM for a quick help message on all ping options.
 
 ---
 
-## Games
-
-All games are played via DM to the bot. See [modules/games/README.md](games/README.md) for detailed rules and examples.
-
-| Command        | Description                        |
-|----------------|------------------------------------|
-| `blackjack`    | Play Blackjack (Casino 21)         |
-| `dopewars`     | Classic trading game               |
-| `golfsim`      | 9-hole Golf Simulator              |
-| `lemonstand`   | Lemonade Stand business sim        |
-| `tictactoe`    | Tic-Tac-Toe vs. the bot            |
-| `mastermind`   | Code-breaking game                 |
-| `videopoker`   | Video Poker (five-card draw)       |
-| `joke`         | Tells a dad joke                   |
-| `hamtest`      | FCC/ARRL QuizBot                   |
-| `hangman`      | Classic word guess game            |
-| `survey`       | Take a custom survey               |
-| `quiz`         | QuizMaster group quiz              |
-
-Enable/disable games in `[games]` section of `config.ini`.
-
----
-
 ## BBS (Bulletin Board System)
 
 | Command      | Description                                   |
@@ -238,100 +212,6 @@ enabled = True
 checklist_db = data/checklist.db
 reverse_in_out = False
 ```
-
----
-
-## Inventory & Point of Sale
-
-### Complete Inventory Management System
-
-The inventory module provides a full point-of-sale (POS) system with inventory tracking, cart management, and transaction logging.
-
-#### Item Management Commands
-
-| Command      | Description                                   |
-|--------------|-----------------------------------------------|
-| `itemadd <name> <qty> [price] [loc]` | Add new item to inventory |
-| `itemremove <name>` | Remove item from inventory |
-| `itemadd <name> <qty> [price] [loc]` | Update item price or quantity |
-| `itemsell <name> <qty> [notes]` | Quick sale (bypasses cart) |
-| `itemloan <name> <note>` - Loan/checkout an item |
-| `itemreturn <transaction_id>` | Reverse a transaction |
-| `itemlist` | View all inventory items |
-| `itemstats` | View today's sales statistics |
-
-#### Cart Commands
-
-| Command      | Description                                   |
-|--------------|-----------------------------------------------|
-| `cartadd <name> <qty>` | Add item to your cart |
-| `cartremove <name>` | Remove item from cart |
-| `cartlist` or `cart` | View your cart |
-| `cartbuy` or `cartsell` | Complete transaction |
-| `cartclear` | Empty your cart |
-
-more at [modules/inventory.py](inventory.py)
-
-#### Features
-
-- **Transaction Tracking**: All sales are logged with timestamps and user information
-- **Cart Management**: Build up orders before completing transactions
-- **Penny Rounding**: Optional rounding for cash sales (USA mode)
-  - Cash sales round down
-  - Taxed sales round up
-- **Hot Item Stats**: Track best-selling items
-- **Location Tracking**: Optional warehouse/location field for items
-- **Transaction History**: Full audit trail of all sales and returns
-
-#### Examples
-
-```
-# Add items to inventory
-itemadd Radio 149.99 5 Shelf-A
-itemadd Battery 12.50 20 Warehouse-B
-
-# View inventory
-itemlist
-
-# Add items to cart
-cartadd Radio 2
-cartadd Battery 4
-
-# View cart
-cartlist
-
-# Complete sale
-cartsell Customer purchase
-
-# Quick sale without cart
-itemsell Battery 1 Emergency sale
-
-# View today's stats
-itemstats
-
-# Process a return
-itemreturn 123
-```
-
-#### Configuration
-
-Enable in `[inventory]` section of `config.ini`:
-
-```ini
-[inventory]
-enabled = True
-inventory_db = data/inventory.db
-# Set to True to enable penny rounding for USA cash sales
-disable_penny = False
-```
-
-#### Database Schema
-
-The system uses SQLite with four tables:
-- **items**: Product inventory
-- **transactions**: Sales records
-- **transaction_items**: Line items for each transaction
-- **carts**: Temporary shopping carts
 
 ---
 
@@ -593,17 +473,7 @@ Just say "Hey Chirpy..." followed by one of the supported commands:
 | `tide`        | Returns NOAA tide information               |
 | `satellite`   | Returns satellite pass info                 |
 
-Enable and configure VOX features in the `[vox]` section of `config.ini`.
-
----
-
-## Ollama LLM/AI
-
-| Command      | Description                                   |
-|--------------|-----------------------------------------------|
-| `askai`      | Ask Ollama LLM AI                             |
-
-More at [LLM Readme](llm.md)
+Enable and configure VOX features in the `[radioMon]` section of `config.ini`.
 
 ---
 
@@ -985,14 +855,6 @@ This will log detailed system messages to disk, which you can review in the `log
 
 ### Module-Specific Troubleshooting
 
-- **Games Not Working:**  
-  Ensure the relevant game is enabled in the `[games]` section:
-  ```ini
-  [games]
-  blackjack = True
-  dopeWars = True
-  # ...other games
-  ```
 - **Weather/Location Issues:**  
   Make sure `[location]` and weather modules are enabled and configured:
   ```ini
@@ -1193,7 +1055,6 @@ Sentry Bot detects anyone coming close to the bot-node. uses the Location Lat/Lo
 
 ```ini
 SentryEnabled = True # detect anyone close to the bot
-emailSentryAlerts = True # if SMTP enabled send alert to sysop email list
 SentryRadius = 100 # radius in meters to detect someone close to the bot
 SentryChannel = 9 # holdoff time multiplied by seconds(20) of the watchdog
 SentryHoldoff = 2 # channel to send a message to when the watchdog is triggered
@@ -1201,21 +1062,6 @@ sentryIgnoreList = # list of ignored nodes numbers ex: 2813308004,4258675309
 highFlyingAlert = True # HighFlying Node alert
 highFlyingAlertAltitude = 2000 # Altitude in meters to trigger the alert
 highflyOpenskynetwork = True # check with OpenSkyNetwork if highfly detected for aircraft
-```
-
-### E-Mail / SMS Settings
-To enable connectivity with SMTP allows messages from meshtastic into SMTP. The term SMS here is for connection via [carrier email](https://avtech.com/articles/138/list-of-email-to-sms-addresses/)
-
-```ini
-[smtp]
-# enable or disable the SMTP module, minimum required for outbound notifications
-enableSMTP = True # enable or disable the IMAP module for inbound email, not implemented yet
-enableImap = False # list of Sysop Emails separate with commas, used only in emergency responder currently
-sysopEmails =
-# See config.template for all the SMTP settings
-SMTP_SERVER = smtp.gmail.com
-SMTP_AUTH = True
-EMAIL_SUBJECT = Meshtastic✉️
 ```
 
 ### Emergency Response Handler
