@@ -24,22 +24,39 @@ MENU_TRIGGER_COMMANDS = ('help', 'bbs', 'menu')
 
 
 def send(interface, node_id, text):
+    """Send a DM to node_id. interface is the device ID integer (1-9)."""
     from modules.system import send_message
-    send_message(text, node_id, interface)
+    node_int = interface if isinstance(interface, int) else 1
+    send_message(text, 0, node_id, node_int)
+
+
+def get_nodes(interface):
+    """Return the nodes dict for a device ID integer or interface object."""
+    node_int = interface if isinstance(interface, int) else 1
+    try:
+        from modules.system import get_interface
+        iface = get_interface(node_int)
+        if iface and hasattr(iface, 'nodes'):
+            return iface.nodes
+    except Exception:
+        pass
+    return {}
 
 
 def get_short_name(node_id, interface):
-    node_info = interface.nodes.get(node_id)
-    if node_info:
-        return node_info['user'].get('shortName', f'Node{node_id}')
-    return f'Node{node_id}'
+    """Get short name for a node. interface is device ID integer."""
+    from modules.system import get_name_from_number
+    node_int = interface if isinstance(interface, int) else 1
+    name = get_name_from_number(node_id, 'short', node_int)
+    return name if name else f'Node{node_id}'
 
 
 def get_long_name(node_id, interface):
-    node_info = interface.nodes.get(node_id)
-    if node_info:
-        return node_info['user'].get('longName', f'Node{node_id}')
-    return f'Node{node_id}'
+    """Get long name for a node. interface is device ID integer."""
+    from modules.system import get_name_from_number
+    node_int = interface if isinstance(interface, int) else 1
+    name = get_name_from_number(node_id, 'long', node_int)
+    return name if name else f'Node{node_id}'
 
 
 def handle_menu_message(message, node_id, interface):
@@ -68,7 +85,7 @@ def handle_menu_message(message, node_id, interface):
     elif command == 'BULLETIN_BOARD':
         _handle_bulletin_board(msg, msg_lower, node_id, state, interface)
     elif command == 'BULLETIN_READ_LIST':
-        _handle_bulletin_read_list(msg, msg_lower, node_id, state, interface)
+        _handle_bulletin_read_list(msg, node_id, state, interface)
     elif command == 'BULLETIN_POST_SUBJECT':
         _handle_bulletin_post_subject(msg, node_id, state, interface)
     elif command == 'BULLETIN_POST_CONTENT':
@@ -194,27 +211,23 @@ def _handle_bulletin_board(msg, msg_lower, node_id, state, interface):
             for b in bulletins:
                 lines.append(f"#{b['id']} {b['subject']} -{b['sender_short_name']}")
             send(interface, node_id, "\n".join(lines))
-            set_state(node_id, {
-                'command': 'BULLETIN_READ_LIST',
-                'board': board,
-                'bulletins': bulletins
-            })
+            set_state(node_id, {'command': 'BULLETIN_READ_LIST', 'board': board, 'bulletins': [dict(b) for b in bulletins]})
     elif msg_lower == 'p':
         if is_banned(node_id):
             send(interface, node_id, "You are not permitted to post.")
             _show_bulletin_board(board, node_id, interface)
             return
-        send(interface, node_id, f"Post to [{board}]\nSubject? (keep it short)")
+        send(interface, node_id, f"Post to [{board}]\nWhat is the subject? (Keep it short)")
         set_state(node_id, {'command': 'BULLETIN_POST_SUBJECT', 'board': board})
     else:
         send(interface, node_id, "Reply R, P, or X.")
 
 
-def _handle_bulletin_read_list(msg, msg_lower, node_id, state, interface):
+def _handle_bulletin_read_list(msg, node_id, state, interface):
     board = state.get('board')
 
-    # Handle delete confirmation from a previous read
-    if msg_lower == 'd' and state.get('last_read'):
+    # Delete confirmation from a previous read
+    if msg.lower() == 'd' and state.get('last_read'):
         bid = state['last_read']
         owner = get_bulletin_owner(bid)
         if normalize_node_id(owner) == normalize_node_id(node_id) or is_admin(node_id):
@@ -225,7 +238,7 @@ def _handle_bulletin_read_list(msg, msg_lower, node_id, state, interface):
         _show_bulletin_board(board, node_id, interface)
         return
 
-    if msg_lower in ('x', 'back'):
+    if msg.lower() in ('x', 'back'):
         _show_bulletin_board(board, node_id, interface)
         return
 
@@ -265,7 +278,7 @@ def _handle_bulletin_post_subject(msg, node_id, state, interface):
     if msg.lower() in ('x', 'cancel'):
         _show_bulletin_board(state.get('board'), node_id, interface)
         return
-    send(interface, node_id, "Send bulletin content.\nSend END when finished.")
+    send(interface, node_id, "Now send the content of your bulletin.\nSend END when finished.")
     set_state(node_id, {
         'command': 'BULLETIN_POST_CONTENT',
         'board': state['board'],
@@ -323,13 +336,13 @@ def _handle_mail_menu(msg, node_id, state, interface):
             for m in mail:
                 lines.append(f"#{m['id']} {m['subject']} -{m['sender_short_name']}")
             send(interface, node_id, "\n".join(lines))
-            set_state(node_id, {'command': 'MAIL_READ_SELECT', 'mail': mail})
+            set_state(node_id, {'command': 'MAIL_READ_SELECT', 'mail': [dict(m) for m in mail]})
     elif msg == 's':
         if is_banned(node_id):
             send(interface, node_id, "You are not permitted to send mail.")
             _show_mail_menu(node_id, interface)
             return
-        send(interface, node_id, "Send to (short name or !nodeid):")
+        send(interface, node_id, "Send mail to (short name or !nodeid):")
         set_state(node_id, {'command': 'MAIL_SEND_TO'})
     else:
         send(interface, node_id, "Reply R, S, or X.")
@@ -437,9 +450,10 @@ def _handle_mail_send_content(msg, node_id, state, interface):
             rid = state['recipient_id']
             recip_num = int(rid[1:], 16) if isinstance(rid, str) and rid.startswith('!') else int(rid)
             from modules.system import send_message
+            node_int = interface if isinstance(interface, int) else 1
             send_message(
                 f"📬 New mail from {short_name}. Reply CM to check.",
-                recip_num, interface
+                0, recip_num, node_int
             )
         except Exception:
             pass
@@ -500,7 +514,7 @@ def _handle_channel_menu(msg, node_id, state, interface):
             for ch in channels:
                 lines.append(f"#{ch['id']} {ch['name']}")
             send(interface, node_id, "\n".join(lines))
-            set_state(node_id, {'command': 'CHANNEL_VIEW', 'channels': channels})
+            set_state(node_id, {'command': 'CHANNEL_VIEW', 'channels': [dict(c) for c in channels]})
     elif msg == 'p':
         send(interface, node_id, "Channel name?")
         set_state(node_id, {'command': 'CHANNEL_POST_NAME'})
@@ -578,11 +592,11 @@ def _handle_stats_menu(msg, node_id, state, interface):
         lines = ["Nodes seen:"]
         for label, secs in timeframes:
             if secs is None:
-                count = len(interface.nodes)
+                count = len(get_nodes(interface))
             else:
                 cutoff = current_time - secs
                 count = sum(
-                    1 for n in interface.nodes.values()
+                    1 for n in get_nodes(interface).values()
                     if n.get('lastHeard') and n['lastHeard'] >= cutoff
                 )
             lines.append(f"  {label}: {count}")
@@ -591,7 +605,7 @@ def _handle_stats_menu(msg, node_id, state, interface):
 
     elif msg == 'h':
         hw = {}
-        for n in interface.nodes.values():
+        for n in get_nodes(interface).values():
             model = n['user'].get('hwModel', 'Unknown')
             hw[model] = hw.get(model, 0) + 1
         lines = ["Hardware:"] + [f"  {m}: {c}" for m, c in sorted(hw.items())]
@@ -600,7 +614,7 @@ def _handle_stats_menu(msg, node_id, state, interface):
 
     elif msg == 'r':
         roles = {}
-        for n in interface.nodes.values():
+        for n in get_nodes(interface).values():
             role = n['user'].get('role', 'Unknown')
             roles[role] = roles.get(role, 0) + 1
         lines = ["Roles:"] + [f"  {r}: {c}" for r, c in sorted(roles.items())]
@@ -609,7 +623,7 @@ def _handle_stats_menu(msg, node_id, state, interface):
 
     elif msg == 'b':
         low = []
-        for nid, n in interface.nodes.items():
+        for nid, n in get_nodes(interface).items():
             bat = n.get('deviceMetrics', {}).get('batteryLevel', 101)
             if bat < 20:
                 low.append(f"  {n['user']['longName']}: {bat}%")

@@ -18,12 +18,26 @@ thread_local = threading.local()
 
 
 def normalize_node_id(node_id):
-    """Normalize any node ID form to !hex string (e.g. 1235296192 → '!49b7a3c0')."""
+    """Normalize any node ID form to !hex string (e.g. 1235296192 → '!49b7a3c0').
+    Accepts: None, int, decimal string, hex string with or without 0x/! prefix.
+    Returns a lowercase !hex string, or None if node_id is None.
+    Non-parseable values (e.g. 'config') are returned as-is.
+    """
+    if node_id is None:
+        return None
     if isinstance(node_id, int):
         return f'!{node_id:08x}'
     s = str(node_id).strip()
     if s.startswith('!'):
         return s.lower()
+    if s.lower().startswith('0x'):
+        try:
+            return f'!{int(s, 16):08x}'
+        except ValueError:
+            pass
+    # Bare hex string (e.g. "49b7a3c0") — contains hex chars but is not purely decimal
+    if all(c in '0123456789abcdefABCDEF' for c in s) and not s.isdigit():
+        return f'!{s.lower()}'
     try:
         return f'!{int(s):08x}'
     except ValueError:
@@ -93,16 +107,24 @@ def initialize_database(seed_admins=None):
     conn.commit()
 
     if seed_admins:
-        for node_id in seed_admins:
-            node_id = normalize_node_id(node_id)
-            if node_id:
-                try:
-                    c.execute(
-                        "INSERT OR IGNORE INTO admins (node_id, added_by, date) VALUES (?, ?, ?)",
-                        (node_id, 'config', datetime.now().strftime('%Y-%m-%d %H:%M'))
-                    )
-                except Exception as e:
-                    logger.error(f"BBS: Error seeding admin {node_id}: {e}")
+        for raw_id in seed_admins:
+            normalized = normalize_node_id(raw_id)
+            if not normalized:
+                continue
+            try:
+                c.execute("SELECT 1 FROM admins WHERE node_id = ?", (normalized,))
+                if c.fetchone():
+                    continue  # already present in canonical form
+                # Remove any stale entry stored under the un-normalized original
+                original_str = str(raw_id).strip()
+                if original_str != normalized:
+                    c.execute("DELETE FROM admins WHERE node_id = ?", (original_str,))
+                c.execute(
+                    "INSERT OR IGNORE INTO admins (node_id, added_by, date) VALUES (?, ?, ?)",
+                    (normalized, 'config', datetime.now().strftime('%Y-%m-%d %H:%M'))
+                )
+            except Exception as e:
+                logger.error(f"BBS: Error seeding admin {raw_id}: {e}")
         conn.commit()
 
     logger.info("BBS: Database initialized.")
@@ -123,7 +145,7 @@ def add_admin(node_id, added_by):
     try:
         c.execute(
             "INSERT OR IGNORE INTO admins (node_id, added_by, date) VALUES (?, ?, ?)",
-            (normalize_node_id(node_id), str(added_by), datetime.now().strftime('%Y-%m-%d %H:%M'))
+            (normalize_node_id(node_id), normalize_node_id(added_by), datetime.now().strftime('%Y-%m-%d %H:%M'))
         )
         conn.commit()
         return c.rowcount > 0
@@ -162,7 +184,7 @@ def ban_node(node_id, banned_by, reason=None):
     try:
         c.execute(
             "INSERT OR IGNORE INTO banned (node_id, banned_by, date, reason) VALUES (?, ?, ?, ?)",
-            (normalize_node_id(node_id), str(banned_by), datetime.now().strftime('%Y-%m-%d %H:%M'), reason)
+            (normalize_node_id(node_id), normalize_node_id(banned_by), datetime.now().strftime('%Y-%m-%d %H:%M'), reason)
         )
         conn.commit()
         return c.rowcount > 0

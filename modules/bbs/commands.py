@@ -314,10 +314,23 @@ def handle_quick_check_bulletin(message, node_id):
 # --- Internal helpers ---
 
 def _resolve_node(name_or_id, interface):
+    """Resolve a short name or node ID string to a !hex node ID.
+    interface may be a meshtastic interface object or an integer device ID.
+    """
     if interface is None:
         return None
+    if isinstance(interface, int):
+        try:
+            from modules.system import get_interface
+            iface_obj = get_interface(interface)
+            nodes = iface_obj.nodes if iface_obj and hasattr(iface_obj, 'nodes') else {}
+        except Exception:
+            nodes = {}
+    else:
+        nodes = getattr(interface, 'nodes', {})
+
     name_lower = name_or_id.lower().strip()
-    for node_id, node in interface.nodes.items():
+    for node_id, node in nodes.items():
         short = node.get('user', {}).get('shortName', '').lower()
         if short == name_lower:
             return normalize_node_id(node_id)
