@@ -24,6 +24,7 @@ if my_settings.bbs_enabled:
         handle_bbs_read, handle_bbs_delete, handle_bbs_dm,
         handle_bbs_check_mail, handle_bbs_read_mail, handle_bbs_delete_mail,
         handle_bbs_chan, handle_bbs_add_chan, handle_bbs_info, handle_bbs_boards,
+        handle_bbs_find,
         handle_quick_send_mail, handle_quick_check_mail,
         handle_quick_post_bulletin, handle_quick_check_bulletin,
     )
@@ -59,6 +60,7 @@ def auto_response(message, snr, rssi, hop, pkiStatus, message_from_id, channel_n
     "bbsread": lambda: handle_bbs_read(message, message_from_id),
     "bbsdelete": lambda: handle_bbs_delete(message, message_from_id),
     "bbsdm": lambda: handle_bbs_dm(message, message_from_id, get_name_from_number(message_from_id, 'short', deviceID), get_interface(deviceID)),
+    "bbsfind": lambda: handle_bbs_find(message, message_from_id, get_interface(deviceID)),
     "bbscheckim": lambda: handle_bbs_check_mail(message_from_id),
     "bbsreadm": lambda: handle_bbs_read_mail(message, message_from_id),
     "bbsdelm": lambda: handle_bbs_delete_mail(message, message_from_id),

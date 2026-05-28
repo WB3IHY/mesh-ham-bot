@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 COMMAND_TRAP = (
     'bbshelp', 'bbslist', 'bbspost', 'bbsread', 'bbsdelete',
     'bbsinfo', 'bbsboards', 'bbsdm', 'bbscheckim', 'bbsreadm',
-    'bbsdelm', 'bbschan', 'bbsaddchan',
+    'bbsdelm', 'bbschan', 'bbsaddchan', 'bbsfind',
     'sm,,', 'cm', 'pb,,', 'cb,,',
 )
 
@@ -33,6 +33,7 @@ def handle_bbs_help(node_id):
         "bbsread <id>\n"
         "bbsdelete <id>\n"
         "bbsdm @node #msg\n"
+        "bbsfind <name or id>\n"
         "bbscheckim\n"
         "bbsreadm <id>\n"
         "bbsdelm <id>\n"
@@ -311,7 +312,51 @@ def handle_quick_check_bulletin(message, node_id):
     return "\n".join(lines)
 
 
+def handle_bbs_find(message, node_id, interface):
+    parts = message.strip().split(None, 1)
+    if len(parts) < 2 or not parts[1].strip():
+        return "Usage: bbsfind <name or node ID fragment>"
+    partial = parts[1].strip()
+    if len(partial) < 2:
+        return "Search term must be at least 2 characters."
+    matches = _fuzzy_find_nodes(partial, interface)
+    if not matches:
+        return f"No nodes found matching '{partial}'."
+    lines = [f"Nodes matching '{partial}':"]
+    for nid, short, long_name in matches[:10]:
+        lines.append(f"{nid} {short} - {long_name}")
+    if len(matches) > 10:
+        lines.append(f"({len(matches) - 10} more — refine search)")
+    return "\n".join(lines)
+
+
 # --- Internal helpers ---
+
+def _fuzzy_find_nodes(partial, interface):
+    """Case-insensitive substring match against short name, long name, and !hex node ID.
+    Returns list of (nid_hex, short_name, long_name) sorted by short name.
+    """
+    if isinstance(interface, int):
+        try:
+            from modules.system import get_interface
+            iface_obj = get_interface(interface)
+            nodes = iface_obj.nodes if iface_obj and hasattr(iface_obj, 'nodes') else {}
+        except Exception:
+            nodes = {}
+    else:
+        nodes = getattr(interface, 'nodes', {})
+    needle = partial.lower()
+    results = []
+    for node_id, node in nodes.items():
+        user = node.get('user', {})
+        short = user.get('shortName', '')
+        long_name = user.get('longName', '')
+        nid_hex = normalize_node_id(node_id) or ''
+        if needle in short.lower() or needle in long_name.lower() or needle in nid_hex.lower():
+            results.append((nid_hex, short, long_name))
+    results.sort(key=lambda x: x[1].lower())
+    return results
+
 
 def _resolve_node(name_or_id, interface):
     """Resolve a short name or node ID string to a !hex node ID.

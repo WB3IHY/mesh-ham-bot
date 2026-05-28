@@ -16,7 +16,7 @@ from modules.bbs.db import (
     get_bbs_stats
 )
 from modules.bbs.state import set_state, get_state, clear_state
-from modules.bbs.commands import _resolve_node
+from modules.bbs.commands import _resolve_node, _fuzzy_find_nodes
 
 logger = logging.getLogger(__name__)
 
@@ -98,6 +98,8 @@ def handle_menu_message(message, node_id, interface):
         _handle_mail_read_action(msg_lower, node_id, state, interface)
     elif command == 'MAIL_SEND_TO':
         _handle_mail_send_to(msg, node_id, state, interface)
+    elif command == 'MAIL_SEND_TO_CONFIRM':
+        _handle_mail_send_to_confirm(msg, node_id, state, interface)
     elif command == 'MAIL_SEND_SUBJECT':
         _handle_mail_send_subject(msg, node_id, state, interface)
     elif command == 'MAIL_SEND_CONTENT':
@@ -414,16 +416,58 @@ def _handle_mail_send_to(msg, node_id, state, interface):
         _show_mail_menu(node_id, interface)
         return
     recipient_id = _resolve_node(msg.strip(), interface)
-    if not recipient_id:
+    if recipient_id:
+        recipient_name = get_short_name(recipient_id, interface)
+        send(interface, node_id, f"To: {recipient_name}\nSubject?")
+        set_state(node_id, {
+            'command': 'MAIL_SEND_SUBJECT',
+            'recipient_id': str(recipient_id),
+            'recipient_name': recipient_name
+        })
+        return
+    candidates = _fuzzy_find_nodes(msg.strip(), interface)
+    if not candidates:
         send(interface, node_id, f"Node '{msg.strip()}' not found. Try again or X.")
         return
-    recipient_name = get_short_name(recipient_id, interface)
-    send(interface, node_id, f"To: {recipient_name}\nSubject?")
+    if len(candidates) == 1:
+        nid, short, _ = candidates[0]
+        send(interface, node_id, f"To: {short}\nSubject?")
+        set_state(node_id, {
+            'command': 'MAIL_SEND_SUBJECT',
+            'recipient_id': nid,
+            'recipient_name': short
+        })
+        return
+    lines = [f"Multiple matches for '{msg.strip()}':"]
+    for i, (nid, short, long_name) in enumerate(candidates[:8], 1):
+        lines.append(f"{i}. {short} ({long_name}) {nid}")
+    lines.append("Enter number or X.")
+    send(interface, node_id, "\n".join(lines))
     set_state(node_id, {
-        'command': 'MAIL_SEND_SUBJECT',
-        'recipient_id': str(recipient_id),
-        'recipient_name': recipient_name
+        'command': 'MAIL_SEND_TO_CONFIRM',
+        'candidates': [{'node_id': nid, 'short': s, 'long': l} for nid, s, l in candidates[:8]]
     })
+
+
+def _handle_mail_send_to_confirm(msg, node_id, state, interface):
+    if msg.lower() in ('x', 'cancel'):
+        _show_mail_menu(node_id, interface)
+        return
+    candidates = state.get('candidates', [])
+    try:
+        idx = int(msg.strip()) - 1
+        if 0 <= idx < len(candidates):
+            chosen = candidates[idx]
+            send(interface, node_id, f"To: {chosen['short']}\nSubject?")
+            set_state(node_id, {
+                'command': 'MAIL_SEND_SUBJECT',
+                'recipient_id': chosen['node_id'],
+                'recipient_name': chosen['short']
+            })
+        else:
+            send(interface, node_id, f"Enter 1-{len(candidates)} or X.")
+    except ValueError:
+        send(interface, node_id, f"Enter 1-{len(candidates)} or X.")
 
 
 def _handle_mail_send_subject(msg, node_id, state, interface):
