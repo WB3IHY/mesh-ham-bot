@@ -280,6 +280,13 @@ def handle_quick_send_mail(message, node_id, short_name, interface):
     _, target_name, subject, content = parts
     recipient_id = _resolve_node(target_name.strip(), interface)
     if not recipient_id:
+        candidates = _fuzzy_find_nodes(target_name.strip(), interface)
+        if candidates:
+            lines = [f"Node '{target_name.strip()}' not found. Did you mean:"]
+            for nid, short, _ in candidates[:5]:
+                lines.append(f"{nid} {short}")
+            lines.append("Use bbsfind for more.")
+            return "\n".join(lines)
         return f"Node '{target_name.strip()}' not found."
     add_mail(str(node_id), short_name, str(recipient_id), subject.strip(), content.strip())
     return f"Mail sent to {target_name.strip()}."
