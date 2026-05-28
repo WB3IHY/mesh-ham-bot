@@ -148,7 +148,7 @@ if bbs_enabled:
     # BBS trap list — command-style keywords
     trap_list_bbs = (
         "bbshelp", "bbslist", "bbspost", "bbsread", "bbsdelete",
-        "bbsinfo", "bbsboards", "bbsdm", "bbscheckim", "bbsreadm",
+        "bbsinfo", "bbsboards", "bbsdm", "bbsfind", "bbscheckim", "bbsreadm",
         "bbsdelm", "bbschan", "bbsaddchan",
         "sm,,", "cm", "pb,,", "cb,,",
         "adminadd", "adminremove", "adminlist",
@@ -156,7 +156,7 @@ if bbs_enabled:
         "maildelete", "chandel", "bbsstats",
     )
     trap_list = trap_list + trap_list_bbs
-    help_message = help_message + ", bbslist, bbshelp, HELP(menu)"
+    help_message = help_message + ", bbslist, bbsfind, bbshelp, HELP(menu)"
 
 # Dad Jokes Configuration
 if dad_jokes_enabled:
