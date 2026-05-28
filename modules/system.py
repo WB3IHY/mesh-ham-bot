@@ -8,6 +8,7 @@ import time
 import asyncio
 import random
 import base64
+import pickle
 # not ideal but needed?
 import contextlib # for suppressing output on watchdog
 import io # for suppressing output on watchdog
@@ -50,7 +51,6 @@ if motd_enabled:
 
 # SMTP Configuration
 if enableSMTP:
-    from modules.smtp import * # from the spudgunman/meshing-around repo
     trap_list = trap_list + trap_list_smtp
     help_message = help_message + ", email:, sms:"
 
@@ -186,117 +186,12 @@ if rssEnable or enable_headlines:
         trap_list = trap_list + ("latest",)
         help_message = help_message + ", latest"
 
-# LLM Configuration
-if llm_enabled:
-    from modules.llm import * # from the spudgunman/meshing-around repo
-    trap_list = trap_list + trap_list_llm # items ask:
-    help_message = help_message + ", askai"
+# LLM removed from mesh-ham-bot
 
-# DopeWars Configuration
-if dopewars_enabled:
-    from modules.games.dopewar import * # from the spudgunman/meshing-around repo
-    trap_list = trap_list + ("dopewars",)
-    games_enabled = True
-
-# Lemonade Stand Configuration
-if lemonade_enabled:
-    from modules.games.lemonade import * # from the spudgunman/meshing-around repo
-    trap_list = trap_list + ("lemonstand",)
-    games_enabled = True
-
-# BlackJack Configuration
-if blackjack_enabled:
-    from modules.games.blackjack import * # from the spudgunman/meshing-around repo
-    trap_list = trap_list + ("blackjack",)
-    games_enabled = True
-
-# Video Poker Configuration
-if videoPoker_enabled:
-    from modules.games.videopoker import * # from the spudgunman/meshing-around repo
-    trap_list = trap_list + ("videopoker",)
-    games_enabled = True
-
-if mastermind_enabled:
-    from modules.games.mmind import * # from the spudgunman/meshing-around repo
-    trap_list = trap_list + ("mastermind",)
-    games_enabled = True
-
-if golfSim_enabled:
-    from modules.games.golfsim import * # from the spudgunman/meshing-around repo
-    trap_list = trap_list + ("golfsim",)
-    games_enabled = True
-
-if hangman_enabled:
-    from modules.games.hangman import * # from the spudgunman/meshing-around repo
-    trap_list = trap_list + ("hangman",)
-    games_enabled = True
-
-if hamtest_enabled:
-    from modules.games.hamtest import * # from the spudgunman/meshing-around repo
-    trap_list = trap_list + ("hamtest",)
-    games_enabled = True
-
-if tictactoe_enabled:
-    from modules.games.tictactoe import TicTacToe # from the spudgunman/meshing-around repo
-    tictactoe = TicTacToe(display_module=None)
-    trap_list = trap_list + ("tictactoe","tic-tac-toe",)
-
-if quiz_enabled:
-    from modules.games.quiz import * # from the spudgunman/meshing-around repo
-    trap_list = trap_list + trap_list_quiz # items quiz, q:
-    help_message = help_message + ", quiz"
-    # games not enabled for quiz
-
-if survey_enabled:
-    from modules.survey import * # from the spudgunman/meshing-around repo
-    trap_list = trap_list + trap_list_survey # items survey, s:
-    help_message = help_message + ", survey"
-    games_enabled = True
-
-if wordOfTheDay:
-    from modules.games.wodt import WordOfTheDayGame # from the spudgunman/meshing-around repo
-    theWordOfTheDay = WordOfTheDayGame()
-    # this runs in background and wont enable other games
-
-if battleship_enabled:
-    from modules.games.battleship import playBattleship # from the spudgunman/meshing-around repo
-    trap_list = trap_list + ("battleship",)
-    games_enabled = True
-
-# Games Configuration
-if games_enabled is True:
-    help_message = help_message + ", games"
-    trap_list = trap_list + ("games",)
-    gTnW_enabled = True
-    gamesCmdList = "Play via DM🕹️ CMD: "
-    if dopewars_enabled:
-        gamesCmdList += "dopeWars, "
-    if lemonade_enabled:
-        gamesCmdList += "lemonStand, "
-    if gTnW_enabled:
-        trap_list = trap_list + ("globalthermonuclearwar","chess")
-        gamesCmdList += "chess, "
-    if blackjack_enabled:
-        gamesCmdList += "blackJack, "
-    if videoPoker_enabled:
-        gamesCmdList += "videoPoker, "
-    if mastermind_enabled:
-        gamesCmdList += "masterMind, "
-    if golfSim_enabled:
-        gamesCmdList += "golfSim, "
-    if hangman_enabled:
-        gamesCmdList += "hangman, "
-    if hamtest_enabled:
-        gamesCmdList += "hamTest, "
-    if tictactoe_enabled:
-        gamesCmdList += "ticTacToe, "
-    if battleship_enabled:
-        gamesCmdList += "battleship, "
-    gamesCmdList = gamesCmdList[:-2] # remove the last comma
-else:
-    gamesCmdList = ""
-
-# Sentry Configuration
+# Games removed from mesh-ham-bot (kept: joke only)
+# dopewars, lemonade, blackjack, videopoker, mastermind, golfsim,
+# hangman, hamtest, tictactoe, quiz, survey, wodt, battleship all removed
+games_enabled = False
 if sentry_enabled:
     from math import sqrt
     import geopy.distance # pip install geopy
@@ -319,8 +214,6 @@ if checklist_enabled:
     help_message = help_message + ", checkin, checkout"
 
 # Inventory and POS Configuration
-if inventory_enabled:
-    from modules.inventory import * # from the spudgunman/meshing-around repo
     trap_list = trap_list + trap_list_inventory # items item, itemlist, itemsell, etc.
     help_message = help_message + ", item, cart"
 
@@ -1134,7 +1027,7 @@ def ban_hammer(node_id, rxInterface=None, channel=None, reason=""):
     Auto-ban nodes that exceed the message threshold within the timeframe.
     Returns True if the node is (or becomes) banned, False otherwise.
     """
-    global autoBanlist, seenNodes, bbs_ban_list
+    global autoBanlist, seenNodes
 
     current_time = time.time()
     node_id_str = str(node_id)
@@ -1143,7 +1036,7 @@ def ban_hammer(node_id, rxInterface=None, channel=None, reason=""):
         return False  # Do not ban admin nodes
 
     # Check if the node is already banned
-    if node_id_str in bbs_ban_list or node_id_str in autoBanlist:
+    if node_id_str in autoBanlist:
         return True  # Node is already banned
     
     # if no reason provided, dont ban just run that last check
@@ -1189,42 +1082,17 @@ def ban_hammer(node_id, rxInterface=None, channel=None, reason=""):
     logger.info(f"System: Node {node_id_str} exceeded auto-ban threshold with {node_entry['auto_ban_count']} messages")
     if autoBanEnabled:
         logger.warning(f"System: Auto-banned node {node_id_str} Reason: {reason}")
-        if node_id_str not in bbs_ban_list:
-            bbs_ban_list.append(node_id_str)
-            save_bbsBanList()
         return True  # Node is now banned
 
     return False  # No ban applied
 
 def save_bbsBanList():
-    # save the bbs_ban_list to file
-    try:
-        with open('data/bbs_ban_list.txt', 'w') as f:
-            for node in bbs_ban_list:
-                f.write(f"{node}\n")
-        logger.debug("System: BBS ban list saved")
-    except Exception as e:
-        logger.error(f"System: Error saving BBS ban list: {e}")
+    pass  # ban list managed in BBS SQLite db
+
 
 def load_bbsBanList():
-    global bbs_ban_list
-    loaded_list = []
-    try:
-        with open('data/bbs_ban_list.txt', 'r') as f:
-            loaded_list = [line.strip() for line in f if line.strip()]
-        logger.debug(f"System: BBS ban list now has {len(loaded_list)} entries loaded from file")
-    except FileNotFoundError:
-        config_val = config['bbs'].get('bbs_ban_list', '')
-        if config_val:
-            loaded_list = [x.strip() for x in config_val.split(',') if x.strip()]
-        logger.debug("System: No BBS ban list file found, loaded from config or started empty")
-    except Exception as e:
-        logger.error(f"System: Error loading BBS ban list: {e}")
+    pass  # ban list managed in BBS SQLite db
 
-    # Merge loaded_list into bbs_ban_list, only adding new entries
-    for node in loaded_list:
-        if node not in bbs_ban_list:
-            bbs_ban_list.append(node)
 
 def isNodeAdmin(nodeID):
     # check if the nodeID is in the bbs_admin_list
@@ -2480,15 +2348,10 @@ async def watchdog():
         if voxDetectionEnabled:
             await process_vox_queue()
         
-        # check the load_bbsdm flag to reload the BBS messages from disk
 
 def saveAllData():
     try:
-        # Save BBS data if enabled
-        if bbs_enabled:
-            save_bbsdb()
-            save_bbsdm()
-            logger.debug("Persistence: BBS data saved")
+        # BBS data is SQLite - commits happen immediately, no explicit save needed
 
         # Save leaderboard data if enabled
         if logMetaStats:
