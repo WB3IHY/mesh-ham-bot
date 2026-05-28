@@ -9,7 +9,8 @@ from modules.bbs.db import (
     delete_bulletin, get_bulletin_content,
     delete_mail_by_id,
     delete_channel,
-    get_bbs_stats
+    get_bbs_stats,
+    normalize_node_id,
 )
 
 logger = logging.getLogger(__name__)
@@ -53,7 +54,7 @@ def handle_admin_remove(message, caller_node_id):
     if len(parts) < 2:
         return "Usage: adminremove <nodeid>"
     target = parts[1].strip()
-    if str(target) == str(caller_node_id):
+    if normalize_node_id(target) == normalize_node_id(caller_node_id):
         return "You cannot remove yourself as admin."
     if remove_admin(target):
         logger.info(f"BBS Admin: {caller_node_id} removed {target} from admins")

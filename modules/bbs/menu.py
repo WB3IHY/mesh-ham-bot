@@ -12,7 +12,7 @@ from modules.bbs.db import (
     add_mail, get_mail, get_mail_content,
     delete_mail_by_unique_id, delete_mail_by_id,
     add_channel, get_channels,
-    is_admin, is_banned, normalize_board, VALID_BOARDS,
+    is_admin, is_banned, normalize_board, normalize_node_id, VALID_BOARDS,
     get_bbs_stats
 )
 from modules.bbs.state import set_state, get_state, clear_state
@@ -217,7 +217,7 @@ def _handle_bulletin_read_list(msg, msg_lower, node_id, state, interface):
     if msg_lower == 'd' and state.get('last_read'):
         bid = state['last_read']
         owner = get_bulletin_owner(bid)
-        if str(owner) == str(node_id) or is_admin(node_id):
+        if normalize_node_id(owner) == normalize_node_id(node_id) or is_admin(node_id):
             delete_bulletin(bid)
             send(interface, node_id, f"Bulletin #{bid} deleted.")
         else:
@@ -246,7 +246,7 @@ def _handle_bulletin_read_list(msg, msg_lower, node_id, state, interface):
         send(interface, node_id, text)
 
         owner = get_bulletin_owner(bid)
-        if str(owner) == str(node_id) or is_admin(node_id):
+        if normalize_node_id(owner) == normalize_node_id(node_id) or is_admin(node_id):
             send(interface, node_id, f"[D]elete #{bid}  [X] Back")
             set_state(node_id, {
                 'command': 'BULLETIN_READ_LIST',
@@ -434,7 +434,8 @@ def _handle_mail_send_content(msg, node_id, state, interface):
                  state['recipient_id'], state['subject'], content)
         send(interface, node_id, f"📨 Mail sent to {state['recipient_name']}.")
         try:
-            recip_num = int(state['recipient_id'])
+            rid = state['recipient_id']
+            recip_num = int(rid[1:], 16) if isinstance(rid, str) and rid.startswith('!') else int(rid)
             from modules.system import send_message
             send_message(
                 f"📬 New mail from {short_name}. Reply CM to check.",

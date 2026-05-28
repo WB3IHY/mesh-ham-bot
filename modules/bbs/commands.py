@@ -10,7 +10,7 @@ from modules.bbs.db import (
     delete_bulletin, get_bulletin_owner,
     add_mail, get_mail, get_mail_content, delete_mail_by_id,
     add_channel, get_channels,
-    is_admin, is_banned, normalize_board, VALID_BOARDS,
+    is_admin, is_banned, normalize_board, normalize_node_id, VALID_BOARDS,
     get_bbs_stats
 )
 
@@ -150,7 +150,7 @@ def handle_bbs_delete(message, node_id):
     if owner is None:
         return f"Bulletin #{bid} not found."
 
-    if str(owner) != str(node_id) and not is_admin(node_id):
+    if normalize_node_id(owner) != normalize_node_id(node_id) and not is_admin(node_id):
         return "You can only delete your own bulletins."
 
     delete_bulletin(bid)
@@ -320,11 +320,13 @@ def _resolve_node(name_or_id, interface):
     for node_id, node in interface.nodes.items():
         short = node.get('user', {}).get('shortName', '').lower()
         if short == name_lower:
-            return node_id
+            return normalize_node_id(node_id)
     try:
         if name_or_id.startswith('!'):
-            return int(name_or_id[1:], 16)
-        return int(name_or_id, 16)
+            num = int(name_or_id[1:], 16)
+        else:
+            num = int(name_or_id, 16)
+        return f'!{num:08x}'
     except ValueError:
         pass
     return None

@@ -15,6 +15,19 @@ from datetime import datetime
 logger = logging.getLogger(__name__)
 
 thread_local = threading.local()
+
+
+def normalize_node_id(node_id):
+    """Normalize any node ID form to !hex string (e.g. 1235296192 → '!49b7a3c0')."""
+    if isinstance(node_id, int):
+        return f'!{node_id:08x}'
+    s = str(node_id).strip()
+    if s.startswith('!'):
+        return s.lower()
+    try:
+        return f'!{int(s):08x}'
+    except ValueError:
+        return s
 _db_path = 'data/bbs.db'
 
 
@@ -81,7 +94,7 @@ def initialize_database(seed_admins=None):
 
     if seed_admins:
         for node_id in seed_admins:
-            node_id = str(node_id).strip()
+            node_id = normalize_node_id(node_id)
             if node_id:
                 try:
                     c.execute(
@@ -100,7 +113,7 @@ def initialize_database(seed_admins=None):
 def is_admin(node_id):
     conn = get_db_connection()
     c = conn.cursor()
-    c.execute("SELECT 1 FROM admins WHERE node_id = ?", (str(node_id),))
+    c.execute("SELECT 1 FROM admins WHERE node_id = ?", (normalize_node_id(node_id),))
     return c.fetchone() is not None
 
 
@@ -110,7 +123,7 @@ def add_admin(node_id, added_by):
     try:
         c.execute(
             "INSERT OR IGNORE INTO admins (node_id, added_by, date) VALUES (?, ?, ?)",
-            (str(node_id), str(added_by), datetime.now().strftime('%Y-%m-%d %H:%M'))
+            (normalize_node_id(node_id), str(added_by), datetime.now().strftime('%Y-%m-%d %H:%M'))
         )
         conn.commit()
         return c.rowcount > 0
@@ -122,7 +135,7 @@ def add_admin(node_id, added_by):
 def remove_admin(node_id):
     conn = get_db_connection()
     c = conn.cursor()
-    c.execute("DELETE FROM admins WHERE node_id = ?", (str(node_id),))
+    c.execute("DELETE FROM admins WHERE node_id = ?", (normalize_node_id(node_id),))
     conn.commit()
     return c.rowcount > 0
 
@@ -139,7 +152,7 @@ def list_admins():
 def is_banned(node_id):
     conn = get_db_connection()
     c = conn.cursor()
-    c.execute("SELECT 1 FROM banned WHERE node_id = ?", (str(node_id),))
+    c.execute("SELECT 1 FROM banned WHERE node_id = ?", (normalize_node_id(node_id),))
     return c.fetchone() is not None
 
 
@@ -149,7 +162,7 @@ def ban_node(node_id, banned_by, reason=None):
     try:
         c.execute(
             "INSERT OR IGNORE INTO banned (node_id, banned_by, date, reason) VALUES (?, ?, ?, ?)",
-            (str(node_id), str(banned_by), datetime.now().strftime('%Y-%m-%d %H:%M'), reason)
+            (normalize_node_id(node_id), str(banned_by), datetime.now().strftime('%Y-%m-%d %H:%M'), reason)
         )
         conn.commit()
         return c.rowcount > 0
@@ -161,7 +174,7 @@ def ban_node(node_id, banned_by, reason=None):
 def unban_node(node_id):
     conn = get_db_connection()
     c = conn.cursor()
-    c.execute("DELETE FROM banned WHERE node_id = ?", (str(node_id),))
+    c.execute("DELETE FROM banned WHERE node_id = ?", (normalize_node_id(node_id),))
     conn.commit()
     return c.rowcount > 0
 
@@ -194,7 +207,7 @@ def add_bulletin(board, sender_short_name, sender_node_id, subject, content, uni
     c.execute(
         "INSERT INTO bulletins (board, sender_short_name, sender_node_id, date, subject, content, unique_id) "
         "VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (board, sender_short_name, str(sender_node_id), date, subject, content, unique_id)
+        (board, sender_short_name, normalize_node_id(sender_node_id), date, subject, content, unique_id)
     )
     conn.commit()
     logger.info(f"BBS: Bulletin posted to {board} by {sender_short_name}: {subject}")
@@ -249,7 +262,7 @@ def add_mail(sender_id, sender_short_name, recipient_id, subject, content, uniqu
     c.execute(
         "INSERT INTO mail (sender, sender_short_name, recipient, date, subject, content, unique_id) "
         "VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (str(sender_id), sender_short_name, str(recipient_id), date, subject, content, unique_id)
+        (normalize_node_id(sender_id), sender_short_name, normalize_node_id(recipient_id), date, subject, content, unique_id)
     )
     conn.commit()
     logger.info(f"BBS: Mail from {sender_short_name} to {recipient_id}: {subject}")
@@ -261,7 +274,7 @@ def get_mail(recipient_id):
     c = conn.cursor()
     c.execute(
         "SELECT id, sender_short_name, subject, date, unique_id FROM mail WHERE recipient = ? ORDER BY id",
-        (str(recipient_id),)
+        (normalize_node_id(recipient_id),)
     )
     return c.fetchall()
 
@@ -272,7 +285,7 @@ def get_mail_content(mail_id, recipient_id):
     c.execute(
         "SELECT sender, sender_short_name, date, subject, content, unique_id "
         "FROM mail WHERE id = ? AND recipient = ?",
-        (mail_id, str(recipient_id))
+        (mail_id, normalize_node_id(recipient_id))
     )
     return c.fetchone()
 
