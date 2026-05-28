@@ -175,6 +175,13 @@ def handle_bbs_dm(message, node_id, short_name, interface):
 
         recipient_id = _resolve_node(to_part, interface)
         if not recipient_id:
+            candidates = _fuzzy_find_nodes(to_part, interface)
+            if candidates:
+                lines = [f"Node '{to_part}' not found. Did you mean:"]
+                for nid, short, _ in candidates[:5]:
+                    lines.append(f"{nid} {short}")
+                lines.append("Use bbsfind for more.")
+                return "\n".join(lines)
             return f"Node '{to_part}' not found."
 
         subject = f"DM from {short_name}"
