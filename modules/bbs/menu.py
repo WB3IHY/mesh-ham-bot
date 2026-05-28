@@ -268,7 +268,12 @@ def _handle_bulletin_read_list(msg, node_id, state, interface):
                 'bulletins': state.get('bulletins', [])
             })
         else:
-            _show_bulletin_board(board, node_id, interface)
+            send(interface, node_id, "[X] Back")
+            set_state(node_id, {
+                'command': 'BULLETIN_READ_LIST',
+                'board': board,
+                'bulletins': state.get('bulletins', [])
+            })
 
     except ValueError:
         send(interface, node_id, "Enter a bulletin # or X.")
@@ -531,10 +536,9 @@ def _handle_channel_view(msg, node_id, state, interface):
         cid = int(msg.lstrip('#'))
         match = next((c for c in channels if c['id'] == cid), None)
         if match:
-            send(interface, node_id, f"📻 {match['name']}\n{match['url']}")
+            send(interface, node_id, f"📻 {match['name']}\n{match['url']}\n[X] Back")
         else:
-            send(interface, node_id, f"Channel #{cid} not found.")
-        _show_channel_menu(node_id, interface)
+            send(interface, node_id, f"Channel #{cid} not found. Enter # or X.")
     except ValueError:
         send(interface, node_id, "Enter a channel # or X.")
 
