@@ -47,6 +47,11 @@ def get_short_name(node_id, interface):
     """Get short name for a node. interface is device ID integer."""
     from modules.system import get_name_from_number
     node_int = interface if isinstance(interface, int) else 1
+    if isinstance(node_id, str) and node_id.startswith('!'):
+        try:
+            node_id = int(node_id[1:], 16)
+        except ValueError:
+            return f'Node{node_id}'
     name = get_name_from_number(node_id, 'short', node_int)
     return name if name else f'Node{node_id}'
 
@@ -55,6 +60,11 @@ def get_long_name(node_id, interface):
     """Get long name for a node. interface is device ID integer."""
     from modules.system import get_name_from_number
     node_int = interface if isinstance(interface, int) else 1
+    if isinstance(node_id, str) and node_id.startswith('!'):
+        try:
+            node_id = int(node_id[1:], 16)
+        except ValueError:
+            return f'Node{node_id}'
     name = get_name_from_number(node_id, 'long', node_int)
     return name if name else f'Node{node_id}'
 
