@@ -14,6 +14,7 @@ from datetime import datetime
 from modules.log import logger, CustomFormatter, msgLogger, getPrettyTime
 import modules.settings as my_settings
 from modules.system import *
+import modules.system as system
 
 # BBS imports — loaded conditionally to match bbs_enabled setting
 if my_settings.bbs_enabled:
@@ -1405,6 +1406,7 @@ async def main():
     tasks = []
     
     try:
+        system.main_loop = asyncio.get_event_loop()
         handle_boot()
         # Create core tasks
         tasks.append(asyncio.create_task(start_rx(), name="mesh_rx"))

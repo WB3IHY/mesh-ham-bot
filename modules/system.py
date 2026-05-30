@@ -20,6 +20,7 @@ from modules.log import logger, getPrettyTime, CustomFormatter
 trap_list = ("cmd","cmd?","bannode",) # base commands
 help_message = "Bot CMD?:"
 asyncLoop = asyncio.new_event_loop()
+main_loop = None  # set by mesh_bot.main() so onDisconnect can schedule coroutines thread-safely
 games_enabled = False
 multiPingList = [{'message_from_id': 0, 'count': 0, 'type': '', 'deviceID': 0, 'channel_number': 0, 'startCount': 0}]
 interface_retry_count = 3
@@ -1224,9 +1225,33 @@ def handleAlertBroadcast(deviceID=1):
     return False
 
 def onDisconnect(interface):
-    # Handle disconnection of the interface
-    logger.warning(f"System: Abrupt Disconnection of Interface detected, attempting reconnect...")
-    interface.close()
+    logger.warning("System: Abrupt disconnection detected, scheduling reconnect...")
+
+    # Swallow BrokenPipeError/OSError from already-dead TCP sockets so we don't
+    # re-fire meshtastic.connection.lost and loop forever.  retry_interface()
+    # will call close() again internally with its own try/except.
+    try:
+        interface.close()
+    except (BrokenPipeError, OSError):
+        pass
+
+    # Match the dead interface object against interface1–interface9 to get the
+    # slot number that retry_interface() expects.
+    nodeID = None
+    for i in range(1, 10):
+        if globals().get(f'interface{i}') is interface:
+            nodeID = i
+            break
+
+    if nodeID is None:
+        logger.error("System: onDisconnect: could not match interface to a slot, reconnect skipped")
+        return
+
+    if main_loop is None:
+        logger.error("System: onDisconnect: main_loop not set, reconnect skipped")
+        return
+
+    asyncio.run_coroutine_threadsafe(retry_interface(nodeID), main_loop)
 
 # Telemetry Functions
 localTelemetryData = {}
