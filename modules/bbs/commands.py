@@ -346,6 +346,37 @@ def handle_bbs_find(message, node_id, interface):
 
 # --- Internal helpers ---
 
+def _contains_emoji(text):
+    """Return True if text contains one or more emoji characters.
+    Checks standard Unicode emoji and symbol ranges.
+    """
+    for ch in text:
+        cp = ord(ch)
+        if (
+            0x1F600 <= cp <= 0x1F64F or  # Emoticons
+            0x1F300 <= cp <= 0x1F5FF or  # Misc Symbols and Pictographs
+            0x1F680 <= cp <= 0x1F6FF or  # Transport and Map
+            0x1F700 <= cp <= 0x1F77F or  # Alchemical Symbols
+            0x1F780 <= cp <= 0x1F7FF or  # Geometric Shapes Extended
+            0x1F800 <= cp <= 0x1F8FF or  # Supplemental Arrows-C
+            0x1F900 <= cp <= 0x1F9FF or  # Supplemental Symbols and Pictographs
+            0x1FA00 <= cp <= 0x1FA6F or  # Chess Symbols
+            0x1FA70 <= cp <= 0x1FAFF or  # Symbols and Pictographs Extended-A
+            0x2600 <= cp <= 0x26FF or    # Misc Symbols (☀ ☁ ⚡ etc.)
+            0x2700 <= cp <= 0x27BF or    # Dingbats
+            0xFE00 <= cp <= 0xFE0F or    # Variation Selectors
+            0x1F1E0 <= cp <= 0x1F1FF or  # Regional Indicators (flag sequences)
+            0x1F000 <= cp <= 0x1F02F or  # Mahjong Tiles
+            0x1F0A0 <= cp <= 0x1F0FF or  # Playing Cards
+            0x1F100 <= cp <= 0x1F1FF or  # Enclosed Alphanumeric Supplement
+            0x1F200 <= cp <= 0x1F2FF or  # Enclosed Ideographic Supplement
+            cp == 0x200D or              # Zero Width Joiner (emoji sequences)
+            cp == 0x20E3                 # Combining Enclosing Keycap
+        ):
+            return True
+    return False
+
+
 def _fuzzy_find_nodes(partial, interface):
     """Case-insensitive substring match against short name, long name, and !hex node ID.
     Returns list of (nid_hex, short_name, long_name) sorted by short name.
@@ -390,8 +421,10 @@ def _resolve_node(name_or_id, interface):
 
     name_lower = name_or_id.lower().strip()
     for node_id, node in nodes.items():
-        short = node.get('user', {}).get('shortName', '').lower()
-        if short == name_lower:
+        short = node.get('user', {}).get('shortName', '')
+        if short.lower() == name_lower:
+            if _contains_emoji(short):
+                return None
             return normalize_node_id(node_id)
     try:
         if name_or_id.startswith('!'):
