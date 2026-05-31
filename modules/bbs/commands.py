@@ -17,7 +17,7 @@ from modules.bbs.db import (
 logger = logging.getLogger(__name__)
 
 COMMAND_TRAP = (
-    'bbshelp', 'bbslist', 'bbspost', 'bbsread', 'bbsdelete',
+    'bbsmenu', 'bbshelp', 'bbslist', 'bbspost', 'bbsread', 'bbsdelete',
     'bbsinfo', 'bbsboards', 'bbsdm', 'bbscheckim', 'bbsreadm',
     'bbsdelm', 'bbschan', 'bbsaddchan', 'bbsfind',
     'sm,,', 'cm', 'pb,,', 'cb,,',
@@ -27,6 +27,8 @@ COMMAND_TRAP = (
 def handle_bbs_help(node_id):
     return (
         "BBS Commands:\n"
+        "bbsmenu - Interactive Menu Mode\n"
+        "Direct Commands:\n"
         "bbslist [board]\n"
         "bbsboards\n"
         "bbspost $subj #msg [^board]\n"
@@ -39,8 +41,7 @@ def handle_bbs_help(node_id):
         "bbsdelm <id>\n"
         "bbschan\n"
         "bbsaddchan $name #url\n"
-        "bbsinfo\n"
-        "Type HELP for menu mode."
+        "bbsinfo"
     )
 
 

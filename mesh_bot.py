@@ -53,6 +53,7 @@ def auto_response(message, snr, rssi, hop, pkiStatus, message_from_id, channel_n
     # Command List processes system.trap_list. system.messageTrap() sends any commands to here
     default_commands = {
     "ack": lambda: handle_ping(message_from_id, deviceID, message, hop, snr, rssi, isDM, channel_number),
+    "bbsmenu": lambda: handle_bbs_help(message_from_id),
     "bbshelp": lambda: handle_bbs_help(message_from_id),
     "bbsinfo": lambda: handle_bbs_info(),
     "bbsboards": lambda: handle_bbs_boards(),
@@ -1262,7 +1263,7 @@ def onReceive(packet, interface):
                 # message is DM to us
                 isDM = True
                 # check if the message contains a trap word, DMs are always responded to
-                # BBS menu handler intercepts HELP and in-menu responses first
+                # BBS menu handler intercepts bbsmenu and in-menu responses first
                 if my_settings.bbs_enabled and handle_menu_message(message_string, message_from_id, rxNode):
                     logger.info(f"Device:{rxNode} BBS menu handled: {message_log_string} From: {get_name_from_number(message_from_id, 'long', rxNode)}")
                 elif messageTrap(message_string) or messageTrap(message_string.split()[0]):
@@ -1286,7 +1287,7 @@ def onReceive(packet, interface):
                                     node['welcome'] = True
                         else:
                             # Unknown command - tell them explicitly
-                            send_message("Unknown command. Try 'cmd' for a list or 'HELP' for the BBS menu.", channel_number, message_from_id, rxNode)
+                            send_message("Unknown command. Try 'cmd' for a list or 'bbsmenu' for the BBS menu.", channel_number, message_from_id, rxNode)
                     
                     # add message to tts queue
                     if meshagesTTS:

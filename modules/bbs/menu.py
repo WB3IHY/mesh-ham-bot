@@ -20,7 +20,9 @@ from modules.bbs.commands import _resolve_node, _fuzzy_find_nodes
 
 logger = logging.getLogger(__name__)
 
-MENU_TRIGGER_COMMANDS = ('help', 'bbs', 'menu')
+MENU_TRIGGER_COMMANDS = ('bbsmenu',)
+
+_EXIT_MSG = "73! Type bbsmenu to return to the BBS."
 
 
 def send(interface, node_id, text):
@@ -164,7 +166,7 @@ def _handle_main_menu(msg, node_id, interface):
         _show_stats_menu(node_id, interface)
     elif msg in ('x', 'exit', 'quit'):
         clear_state(node_id)
-        send(interface, node_id, "73! Type HELP to return to the BBS.")
+        send(interface, node_id, _EXIT_MSG)
     else:
         send(interface, node_id, "Unknown option. Reply B, M, C, S, or X.")
 
@@ -177,15 +179,19 @@ def _show_bbs_menu(node_id, interface):
     menu = (
         "📰 Bulletins 📰\n"
         + "\n".join(f"[{i+1}] {b}" for i, b in enumerate(VALID_BOARDS))
-        + "\n[X] Back"
+        + "\n[B] Back  [X] Exit"
     )
     send(interface, node_id, menu)
     set_state(node_id, {'command': 'BBS_MENU'})
 
 
 def _handle_bbs_menu(msg, node_id, state, interface):
-    if msg in ('x', 'back'):
+    if msg in ('b', 'back'):
         _show_main_menu(node_id, interface)
+        return
+    if msg in ('x', 'exit', 'quit'):
+        clear_state(node_id)
+        send(interface, node_id, _EXIT_MSG)
         return
     try:
         idx = int(msg) - 1
@@ -193,9 +199,9 @@ def _handle_bbs_menu(msg, node_id, state, interface):
             board = VALID_BOARDS[idx]
             _show_bulletin_board(board, node_id, interface)
         else:
-            send(interface, node_id, f"Choose 1-{len(VALID_BOARDS)} or X.")
+            send(interface, node_id, f"Choose 1-{len(VALID_BOARDS)}, B, or X.")
     except ValueError:
-        send(interface, node_id, f"Choose 1-{len(VALID_BOARDS)} or X.")
+        send(interface, node_id, f"Choose 1-{len(VALID_BOARDS)}, B, or X.")
 
 
 def _show_bulletin_board(board, node_id, interface):
@@ -203,7 +209,7 @@ def _show_bulletin_board(board, node_id, interface):
     count = len(bulletins)
     menu = (
         f"[{board}] {count} bulletin(s)\n"
-        f"[R]ead  [P]ost  [X] Back"
+        f"[R]ead  [P]ost  [B] Back  [X] Exit"
     )
     send(interface, node_id, menu)
     set_state(node_id, {'command': 'BULLETIN_BOARD', 'board': board})
@@ -211,8 +217,11 @@ def _show_bulletin_board(board, node_id, interface):
 
 def _handle_bulletin_board(msg, msg_lower, node_id, state, interface):
     board = state.get('board')
-    if msg_lower in ('x', 'back'):
+    if msg_lower in ('b', 'back'):
         _show_bbs_menu(node_id, interface)
+    elif msg_lower in ('x', 'exit', 'quit'):
+        clear_state(node_id)
+        send(interface, node_id, _EXIT_MSG)
     elif msg_lower == 'r':
         bulletins = get_bulletins(board)
         if not bulletins:
@@ -222,6 +231,7 @@ def _handle_bulletin_board(msg, msg_lower, node_id, state, interface):
             lines = [f"[{board}] — select #:"]
             for b in bulletins:
                 lines.append(f"#{b['id']} {b['subject']} -{b['sender_short_name']}")
+            lines.append("[B] Back  [X] Exit")
             send(interface, node_id, "\n".join(lines))
             set_state(node_id, {'command': 'BULLETIN_READ_LIST', 'board': board, 'bulletins': [dict(b) for b in bulletins]})
     elif msg_lower == 'p':
@@ -232,7 +242,7 @@ def _handle_bulletin_board(msg, msg_lower, node_id, state, interface):
         send(interface, node_id, f"Post to [{board}]\nWhat is the subject? (Keep it short)")
         set_state(node_id, {'command': 'BULLETIN_POST_SUBJECT', 'board': board})
     else:
-        send(interface, node_id, "Reply R, P, or X.")
+        send(interface, node_id, "Reply R, P, B, or X.")
 
 
 def _handle_bulletin_read_list(msg, node_id, state, interface):
@@ -250,8 +260,13 @@ def _handle_bulletin_read_list(msg, node_id, state, interface):
         _show_bulletin_board(board, node_id, interface)
         return
 
-    if msg.lower() in ('x', 'back'):
+    if msg.lower() in ('b', 'back'):
         _show_bulletin_board(board, node_id, interface)
+        return
+
+    if msg.lower() in ('x', 'exit', 'quit'):
+        clear_state(node_id)
+        send(interface, node_id, _EXIT_MSG)
         return
 
     try:
@@ -272,7 +287,7 @@ def _handle_bulletin_read_list(msg, node_id, state, interface):
 
         owner = get_bulletin_owner(bid)
         if normalize_node_id(owner) == normalize_node_id(node_id) or is_admin(node_id):
-            send(interface, node_id, f"[D]elete #{bid}  [X] Back")
+            send(interface, node_id, f"[D]elete #{bid}  [B] Back  [X] Exit")
             set_state(node_id, {
                 'command': 'BULLETIN_READ_LIST',
                 'board': board,
@@ -280,7 +295,7 @@ def _handle_bulletin_read_list(msg, node_id, state, interface):
                 'bulletins': state.get('bulletins', [])
             })
         else:
-            send(interface, node_id, "[X] Back")
+            send(interface, node_id, "[B] Back  [X] Exit")
             set_state(node_id, {
                 'command': 'BULLETIN_READ_LIST',
                 'board': board,
@@ -288,7 +303,7 @@ def _handle_bulletin_read_list(msg, node_id, state, interface):
             })
 
     except ValueError:
-        send(interface, node_id, "Enter a bulletin # or X.")
+        send(interface, node_id, "Enter a bulletin # or B.")
 
 
 def _handle_bulletin_post_subject(msg, node_id, state, interface):
@@ -334,15 +349,18 @@ def _show_mail_menu(node_id, interface):
     menu = (
         f"✉️ Mail ✉️\n"
         f"{len(mail)} message(s)\n"
-        f"[R]ead  [S]end  [X] Back"
+        f"[R]ead  [S]end  [B] Back  [X] Exit"
     )
     send(interface, node_id, menu)
     set_state(node_id, {'command': 'MAIL_MENU'})
 
 
 def _handle_mail_menu(msg, node_id, state, interface):
-    if msg in ('x', 'back'):
+    if msg in ('b', 'back'):
         _show_main_menu(node_id, interface)
+    elif msg in ('x', 'exit', 'quit'):
+        clear_state(node_id)
+        send(interface, node_id, _EXIT_MSG)
     elif msg == 'r':
         mail = get_mail(str(node_id))
         if not mail:
@@ -352,6 +370,7 @@ def _handle_mail_menu(msg, node_id, state, interface):
             lines = ["📬 Your mail — select #:"]
             for m in mail:
                 lines.append(f"#{m['id']} {m['subject']} -{m['sender_short_name']}")
+            lines.append("[B] Back  [X] Exit")
             send(interface, node_id, "\n".join(lines))
             set_state(node_id, {'command': 'MAIL_READ_SELECT', 'mail': [dict(m) for m in mail]})
     elif msg == 's':
@@ -362,12 +381,16 @@ def _handle_mail_menu(msg, node_id, state, interface):
         send(interface, node_id, "Send mail to (short name or !nodeid):")
         set_state(node_id, {'command': 'MAIL_SEND_TO'})
     else:
-        send(interface, node_id, "Reply R, S, or X.")
+        send(interface, node_id, "Reply R, S, B, or X.")
 
 
 def _handle_mail_read_select(msg, node_id, state, interface):
-    if msg.lower() in ('x', 'back'):
+    if msg.lower() in ('b', 'back'):
         _show_mail_menu(node_id, interface)
+        return
+    if msg.lower() in ('x', 'exit', 'quit'):
+        clear_state(node_id)
+        send(interface, node_id, _EXIT_MSG)
         return
     try:
         mid = int(msg.lstrip('#'))
@@ -384,7 +407,7 @@ def _handle_mail_read_select(msg, node_id, state, interface):
                 f"---\n{row['content']}"
             )
             send(interface, node_id, text)
-            send(interface, node_id, "[K]eep  [D]elete  [R]eply  [X] Back")
+            send(interface, node_id, "[K]eep  [D]elete  [R]eply  [B] Back  [X] Exit")
             set_state(node_id, {
                 'command': 'MAIL_READ_ACTION',
                 'mail_id': mid,
@@ -394,14 +417,17 @@ def _handle_mail_read_select(msg, node_id, state, interface):
                 'subject': row['subject']
             })
     except ValueError:
-        send(interface, node_id, "Enter a mail # or X.")
+        send(interface, node_id, "Enter a mail # or B.")
 
 
 def _handle_mail_read_action(msg, node_id, state, interface):
     mid = state.get('mail_id')
-    if msg in ('k', 'keep', 'x', 'back'):
+    if msg in ('k', 'keep', 'b', 'back'):
         send(interface, node_id, "Message kept. ✉️")
         _show_mail_menu(node_id, interface)
+    elif msg in ('x', 'exit', 'quit'):
+        clear_state(node_id)
+        send(interface, node_id, _EXIT_MSG)
     elif msg == 'd':
         delete_mail_by_id(mid)
         send(interface, node_id, f"Mail #{mid} deleted. 🗑️")
@@ -418,7 +444,7 @@ def _handle_mail_read_action(msg, node_id, state, interface):
             'original_id': mid
         })
     else:
-        send(interface, node_id, "Reply K, D, R, or X.")
+        send(interface, node_id, "Reply K, D, R, B, or X.")
 
 
 def _handle_mail_send_to(msg, node_id, state, interface):
@@ -554,15 +580,18 @@ def _show_channel_menu(node_id, interface):
     menu = (
         f"📻 Channels 📻\n"
         f"{len(channels)} listed\n"
-        f"[V]iew  [P]ost  [X] Back"
+        f"[V]iew  [P]ost  [B] Back  [X] Exit"
     )
     send(interface, node_id, menu)
     set_state(node_id, {'command': 'CHANNEL_MENU'})
 
 
 def _handle_channel_menu(msg, node_id, state, interface):
-    if msg in ('x', 'back'):
+    if msg in ('b', 'back'):
         _show_main_menu(node_id, interface)
+    elif msg in ('x', 'exit', 'quit'):
+        clear_state(node_id)
+        send(interface, node_id, _EXIT_MSG)
     elif msg == 'v':
         channels = get_channels()
         if not channels:
@@ -572,29 +601,34 @@ def _handle_channel_menu(msg, node_id, state, interface):
             lines = ["Channels — select #:"]
             for ch in channels:
                 lines.append(f"#{ch['id']} {ch['name']}")
+            lines.append("[B] Back  [X] Exit")
             send(interface, node_id, "\n".join(lines))
             set_state(node_id, {'command': 'CHANNEL_VIEW', 'channels': [dict(c) for c in channels]})
     elif msg == 'p':
         send(interface, node_id, "Channel name?")
         set_state(node_id, {'command': 'CHANNEL_POST_NAME'})
     else:
-        send(interface, node_id, "Reply V, P, or X.")
+        send(interface, node_id, "Reply V, P, B, or X.")
 
 
 def _handle_channel_view(msg, node_id, state, interface):
-    if msg.lower() in ('x', 'back'):
+    if msg.lower() in ('b', 'back'):
         _show_channel_menu(node_id, interface)
+        return
+    if msg.lower() in ('x', 'exit', 'quit'):
+        clear_state(node_id)
+        send(interface, node_id, _EXIT_MSG)
         return
     channels = state.get('channels', [])
     try:
         cid = int(msg.lstrip('#'))
         match = next((c for c in channels if c['id'] == cid), None)
         if match:
-            send(interface, node_id, f"📻 {match['name']}\n{match['url']}\n[X] Back")
+            send(interface, node_id, f"📻 {match['name']}\n{match['url']}\n[B] Back  [X] Exit")
         else:
-            send(interface, node_id, f"Channel #{cid} not found. Enter # or X.")
+            send(interface, node_id, f"Channel #{cid} not found. Enter # or B.")
     except ValueError:
-        send(interface, node_id, "Enter a channel # or X.")
+        send(interface, node_id, "Enter a channel # or B.")
 
 
 def _handle_channel_post_name(msg, node_id, state, interface):
@@ -625,9 +659,9 @@ def _show_stats_menu(node_id, interface):
         "[N]odes\n"
         "[H]ardware\n"
         "[R]oles\n"
-        "[B]attery wall\n"
+        "[W]all (low battery)\n"
         "[D]B stats\n"
-        "[X] Back"
+        "[B] Back  [X] Exit"
     )
     send(interface, node_id, menu)
     set_state(node_id, {'command': 'STATS_MENU'})
@@ -635,8 +669,12 @@ def _show_stats_menu(node_id, interface):
 
 def _handle_stats_menu(msg, node_id, state, interface):
     import time
-    if msg in ('x', 'back'):
+    if msg in ('b', 'back'):
         _show_main_menu(node_id, interface)
+        return
+    if msg in ('x', 'exit', 'quit'):
+        clear_state(node_id)
+        send(interface, node_id, _EXIT_MSG)
         return
 
     if msg == 'n':
@@ -679,7 +717,7 @@ def _handle_stats_menu(msg, node_id, state, interface):
         send(interface, node_id, "\n".join(lines))
         _show_stats_menu(node_id, interface)
 
-    elif msg == 'b':
+    elif msg == 'w':
         low = []
         for nid, n in get_nodes(interface).items():
             bat = n.get('deviceMetrics', {}).get('batteryLevel', 101)
@@ -702,4 +740,4 @@ def _handle_stats_menu(msg, node_id, state, interface):
         _show_stats_menu(node_id, interface)
 
     else:
-        send(interface, node_id, "Reply N, H, R, B, D, or X.")
+        send(interface, node_id, "Reply N, H, R, W, D, B, or X.")

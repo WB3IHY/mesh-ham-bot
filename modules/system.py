@@ -148,7 +148,7 @@ if bbs_enabled:
     from modules.bbs.state import is_in_menu
     # BBS trap list — command-style keywords
     trap_list_bbs = (
-        "bbshelp", "bbslist", "bbspost", "bbsread", "bbsdelete",
+        "bbsmenu", "bbshelp", "bbslist", "bbspost", "bbsread", "bbsdelete",
         "bbsinfo", "bbsboards", "bbsdm", "bbsfind", "bbscheckim", "bbsreadm",
         "bbsdelm", "bbschan", "bbsaddchan",
         "sm,,", "cm", "pb,,", "cb,,",
@@ -157,7 +157,7 @@ if bbs_enabled:
         "maildelete", "chandel", "bbsstats",
     )
     trap_list = trap_list + trap_list_bbs
-    help_message = help_message + ", bbslist, bbsfind, bbshelp, HELP(menu)"
+    help_message = help_message + ", bbslist, bbsfind, bbshelp, bbsmenu"
 
 # Dad Jokes Configuration
 if dad_jokes_enabled:
