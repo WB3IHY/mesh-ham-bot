@@ -121,7 +121,7 @@ def auto_response(message, snr, rssi, hop, pkiStatus, message_from_id, channel_n
     "leaderboard": lambda: get_mesh_leaderboard(message, message_from_id, deviceID),
     "lheard": lambda: handle_lheard(message, message_from_id, deviceID, isDM),
     "map": lambda: mapHandler(message_from_id, deviceID, channel_number, message, snr, rssi, hop),
-    "messages": lambda: handle_messages(message, deviceID, channel_number, msg_history, publicChannel, isDM),
+    "messages": lambda: handle_messages(message, deviceID, channel_number, msg_history, isDM),
     "moon": lambda: handle_moon(message_from_id, deviceID, channel_number),
     "motd": lambda: handle_motd(message, message_from_id, isDM),
     "mwx": lambda: handle_mwx(message_from_id, deviceID, channel_number),
@@ -637,41 +637,41 @@ def handle_inventory(message, message_from_id, deviceID):
     return process_inventory_command(message_from_id, message, name)
 
 # handle_bbspost, handle_bbsread, handle_bbsdelete removed -- replaced by modules/bbs/
-def handle_messages(message, deviceID, channel_number, msg_history, publicChannel, isDM):
+def handle_messages(message, deviceID, channel_number, msg_history, isDM):
     if  "?" in message and isDM:
         return message.split("?")[0].title() + " command returns the last " + str(storeFlimit) + " messages sent on a channel."
     else:
         # Filter messages for this device/channel
         filtered_msgs = [
             msgH for msgH in msg_history
-            if msgH[4] == deviceID and (msgH[2] == channel_number or msgH[2] == publicChannel)
+            if msgH[4] == deviceID and msgH[2] == channel_number
         ]
-        
-        # Choose order and slice
-        # Oldest first, take first N
+
+        # Most recent N entries, newest first
         filtered_msgs = filtered_msgs[-storeFlimit:][::-1]
         if my_settings.reverseSF:
-            # reverse that 
+            # reverse that
             filtered_msgs = filtered_msgs[::-1]
 
         response = ""
         header = f"📨Msgs:\n"
         for msgH in filtered_msgs:
-            new_line = f"\n{msgH[0]}: {msgH[1]}"
+            ts = msgH[3].split()[-1]
+            new_line = f"\n[{ts}] {msgH[0]}: {msgH[1]}"
             test_response = response + new_line
             if len(test_response.encode('utf-8')) > maxBuffer:
                 # Truncate message if needed
                 msg_text = msgH[1]
                 truncated = False
                 trunc_marker = "..."
-                while len(msg_text) > 0 and len((response + f"\n{msgH[0]}: {msg_text}{trunc_marker}").encode('utf-8')) > maxBuffer:
+                while len(msg_text) > 0 and len((response + f"\n[{ts}] {msgH[0]}: {msg_text}{trunc_marker}").encode('utf-8')) > maxBuffer:
                     msg_text = msg_text[:-1]
                     truncated = True
                 if len(msg_text) > 10:
                     if truncated:
-                        response += f"\n{msgH[0]}: {msg_text}{trunc_marker}"
+                        response += f"\n[{ts}] {msgH[0]}: {msg_text}{trunc_marker}"
                     else:
-                        response += f"\n{msgH[0]}: {msg_text}"
+                        response += f"\n[{ts}] {msgH[0]}: {msg_text}"
                     break
                 continue
             else:
