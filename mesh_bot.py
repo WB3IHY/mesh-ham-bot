@@ -18,7 +18,7 @@ import modules.system as system
 
 # BBS imports — loaded conditionally to match bbs_enabled setting
 if my_settings.bbs_enabled:
-    from modules.bbs.db import is_banned, add_mail
+    from modules.bbs.db import is_banned, add_mail, has_pending_mail_alert, mark_mail_alerted
     from modules.bbs.menu import handle_menu_message
     from modules.bbs.commands import (
         handle_bbs_help, handle_bbs_list, handle_bbs_post,
@@ -211,6 +211,11 @@ def auto_response(message, snr, rssi, hop, pkiStatus, message_from_id, channel_n
             if len(cmdHistory) > 50:
                 cmdHistory.pop(0)
             cmdHistory.append({'nodeID': message_from_id, 'cmd':  cmds[0]['cmd'], 'time': time.time()})
+
+    if isDM and my_settings.bbs_enabled and has_pending_mail_alert(message_from_id):
+        mark_mail_alerted(message_from_id)
+        bot_response = f"📬 You have mail waiting. Reply CM to check.\n{bot_response}"
+
     return bot_response
 
 def handle_cmd(message, message_from_id, deviceID):

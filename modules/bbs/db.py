@@ -273,6 +273,27 @@ def get_bulletin_owner(bulletin_id):
     return row['sender_node_id'] if row else None
 
 
+# --- Mail notification alert tracking ---
+# Tracks nodes already told about pending mail; cleared when new mail arrives.
+_mail_notified: set = set()
+
+
+def has_pending_mail_alert(node_id) -> bool:
+    """Return True if node has waiting mail and hasn't been notified yet."""
+    nid = normalize_node_id(node_id)
+    if nid in _mail_notified:
+        return False
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("SELECT 1 FROM mail WHERE recipient = ? LIMIT 1", (nid,))
+    return c.fetchone() is not None
+
+
+def mark_mail_alerted(node_id):
+    """Record that the node has been notified about their pending mail."""
+    _mail_notified.add(normalize_node_id(node_id))
+
+
 # --- Mail ---
 
 def add_mail(sender_id, sender_short_name, recipient_id, subject, content, unique_id=None):
@@ -287,6 +308,7 @@ def add_mail(sender_id, sender_short_name, recipient_id, subject, content, uniqu
         (normalize_node_id(sender_id), sender_short_name, normalize_node_id(recipient_id), date, subject, content, unique_id)
     )
     conn.commit()
+    _mail_notified.discard(normalize_node_id(recipient_id))
     logger.info(f"BBS: Mail from {sender_short_name} to {recipient_id}: {subject}")
     return unique_id
 
