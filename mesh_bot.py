@@ -288,6 +288,10 @@ def handle_ping(message_from_id, deviceID,  message, hop, snr, rssi, isDM, chann
                     logger.debug(f"System: Sending joke as BBS mail to @{toNode} from {get_name_from_number(message_from_id, 'short', deviceID)}")
                     short_name = get_name_from_number(message_from_id, 'short', deviceID)
                     add_mail(str(message_from_id), short_name, str(toNode), "Joke for you!", tell_joke())
+                    try:
+                        send_message(f"📬 New mail from {short_name}. Reply CM to check.", 0, toNode, rxNode)
+                    except Exception:
+                        pass
                     return f"Joke sent to {get_name_from_number(toNode, 'short', deviceID)} via BBS mail!"
 
     elif "#" in message:

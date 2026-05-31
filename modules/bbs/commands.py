@@ -186,6 +186,13 @@ def handle_bbs_dm(message, node_id, short_name, interface):
 
         subject = f"DM from {short_name}"
         add_mail(str(node_id), short_name, str(recipient_id), subject, msg_part)
+        try:
+            from modules.system import send_message
+            node_int = interface if isinstance(interface, int) else 1
+            recip_num = int(recipient_id[1:], 16)
+            send_message(f"📬 New mail from {short_name}. Reply CM to check.", 0, recip_num, node_int)
+        except Exception:
+            pass
         return f"Mail sent to {to_part}."
     except Exception as e:
         logger.error(f"BBS: bbsdm error: {e}")
@@ -289,6 +296,13 @@ def handle_quick_send_mail(message, node_id, short_name, interface):
             return "\n".join(lines)
         return f"Node '{target_name.strip()}' not found."
     add_mail(str(node_id), short_name, str(recipient_id), subject.strip(), content.strip())
+    try:
+        from modules.system import send_message
+        node_int = interface if isinstance(interface, int) else 1
+        recip_num = int(recipient_id[1:], 16)
+        send_message(f"📬 New mail from {short_name}. Reply CM to check.", 0, recip_num, node_int)
+    except Exception:
+        pass
     return f"Mail sent to {target_name.strip()}."
 
 
