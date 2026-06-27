@@ -2342,8 +2342,9 @@ async def watchdog():
                 try:
                     firmware = getNodeFirmware(0, i)
                 except Exception as e:
-                    logger.error(f"System: communicating with interface{i}, trying to reconnect: {e}")
-                    globals()[f'retry_int{i}'] = True
+                    if not globals().get(f'retry_int{i}'):
+                        logger.error(f"System: communicating with interface{i}, trying to reconnect: {e}")
+                        globals()[f'retry_int{i}'] = True
 
                 if not retry_int and int_enabled:
                     if sentry_enabled:
@@ -2359,11 +2360,6 @@ async def watchdog():
                         logger.debug(intData + f" Firmware:{firmware}")
                         localTelemetryData[0][f'lastAlert{i}'] = intData
 
-            if retry_int and int_enabled:
-                try:
-                    await retry_interface(i)
-                except Exception as e:
-                    logger.error(f"System: retrying interface{i}: {e}")
         
         # check for noisy telemetry
         if noisyNodeLogging:
