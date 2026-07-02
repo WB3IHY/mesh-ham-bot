@@ -41,7 +41,7 @@ else:
     def handle_menu_message(message, node_id, interface): return False
 
 # list of commands to remove from the default list for DM only
-restrictedCommands = ["blackjack", "videopoker", "dopewars", "lemonstand", "golfsim", "mastermind", "hangman", "hamtest", "tictactoe", "tic-tac-toe", "quiz", "q:", "survey", "s:", "battleship"]
+restrictedCommands = ["blackjack", "videopoker", "dopewars", "lemonstand", "golfsim", "mastermind", "hangman", "hamtest", "tictactoe", "tic-tac-toe", "quiz", "q:", "survey", "s:", "battleship", "nodes"]
 restrictedResponse = "🤖only available in a Direct Message📵" # "" for none
 
 def auto_response(message, snr, rssi, hop, pkiStatus, message_from_id, channel_number, deviceID, isDM):
@@ -126,6 +126,7 @@ def auto_response(message, snr, rssi, hop, pkiStatus, message_from_id, channel_n
     "moon": lambda: handle_moon(message_from_id, deviceID, channel_number),
     "motd": lambda: handle_motd(message, message_from_id, isDM),
     "mwx": lambda: handle_mwx(message_from_id, deviceID, channel_number),
+    "nodes": lambda: handle_nodes(message, message_from_id, deviceID, isDM),
     "ping": lambda: handle_ping(message_from_id, deviceID, message, hop, snr, rssi, isDM, channel_number),
     "pinging": lambda: handle_ping(message_from_id, deviceID, message, hop, snr, rssi, isDM, channel_number),
     "pong": lambda: "🏓PING!!🛜",
@@ -741,6 +742,25 @@ def handle_lheard(message, nodeid, deviceID, isDM):
 
     # bot_response += getNodeTelemetry(deviceID)
     return bot_response
+
+def handle_nodes(message, nodeid, deviceID, isDM):
+    if "?" in message and isDM:
+        return message.split("?")[0].title() + " command returns a list of all nodes the bot knows about, sorted by last heard"
+
+    nodes = get_all_nodes(deviceID)
+    if not nodes:
+        return "No nodes known."
+
+    bot_response = f"Known Nodes: {len(nodes)}\n"
+    for long_name, short_name, hex_id, battery, last_heard in nodes:
+        battery_str = f"{battery}%" if battery is not None else "?%"
+        if last_heard:
+            ago_str = f"{getPrettyTime(time.time() - last_heard)} ago"
+        else:
+            ago_str = "never"
+        bot_response += f"{long_name}, {short_name}, {hex_id}, {battery_str}, {ago_str}\n"
+
+    return bot_response.rstrip()
 
 def handle_history(message, nodeid, deviceID, isDM, lheard=False):
     global cmdHistory, lheardCmdIgnoreNode, bbs_admin_list

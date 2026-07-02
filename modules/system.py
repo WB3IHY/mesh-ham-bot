@@ -40,9 +40,9 @@ if enableEcho:
 
 # Sitrep Configuration
 if sitrep_enabled:
-    trap_list_sitrep = ("sitrep", "lheard", "sysinfo", "leaderboard")
+    trap_list_sitrep = ("sitrep", "lheard", "sysinfo", "leaderboard", "nodes")
     trap_list = trap_list + trap_list_sitrep
-    help_message = help_message + ", sitrep, sysinfo, leaderboard"
+    help_message = help_message + ", sitrep, sysinfo, leaderboard, nodes"
 
 # MOTD Configuration
 if motd_enabled:
@@ -556,6 +556,29 @@ def get_node_list(nodeInt=1):
         node_list = ERROR_FETCHING_DATA
     
     return node_list
+
+def get_all_nodes(nodeInt=1):
+    """Return every known node (except our own), sorted by most recently heard first.
+    Each item is (long_name, short_name, hex_id, battery_level, last_heard_epoch).
+    battery_level and last_heard_epoch may be None if not reported by the node.
+    """
+    interface = globals()[f'interface{nodeInt}']
+    nodes = []
+    if not interface.nodes:
+        return nodes
+
+    for node_id, node in interface.nodes.items():
+        if all(node['num'] != globals().get(f'myNodeNum{i}') for i in range(1, 10)):
+            user = node.get('user', {})
+            long_name = user.get('longName') or decimal_to_hex(node['num'])
+            short_name = user.get('shortName') or decimal_to_hex(node['num'])
+            hex_id = decimal_to_hex(node['num'])
+            battery = node.get('deviceMetrics', {}).get('batteryLevel')
+            last_heard = node.get('lastHeard') or None
+            nodes.append((long_name, short_name, hex_id, battery, last_heard))
+
+    nodes.sort(key=lambda x: x[4] if x[4] is not None else 0, reverse=True)
+    return nodes
 
 def get_node_location(nodeID, nodeInt=1, channel=0, round_digits=2):
     """
