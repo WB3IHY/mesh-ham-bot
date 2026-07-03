@@ -41,8 +41,14 @@ else:
     def handle_menu_message(message, node_id, interface): return False
 
 # list of commands to remove from the default list for DM only
-restrictedCommands = ["blackjack", "videopoker", "dopewars", "lemonstand", "golfsim", "mastermind", "hangman", "hamtest", "tictactoe", "tic-tac-toe", "quiz", "q:", "survey", "s:", "battleship", "nodes"]
+# (previously listed commands have been removed from the codebase; add future DM-only commands here)
+restrictedCommands = []
 restrictedResponse = "🤖only available in a Direct Message📵" # "" for none
+
+# commands that "share <cmd>" is allowed to re-broadcast into the issuing channel
+# whitelist by design: BBS/admin/mail commands and anything not listed here stay DM/normal-routed only
+shareableCommands = {"wx", "wxa", "wxalert", "wxc", "sun", "moon", "tide", "mwx",
+                      "solar", "hfcond", "satpass", "valert", "riverflow", "dx", "joke", "verse"}
 
 def auto_response(message, snr, rssi, hop, pkiStatus, message_from_id, channel_number, deviceID, isDM):
     global cmdHistory
@@ -81,12 +87,6 @@ def auto_response(message, snr, rssi, hop, pkiStatus, message_from_id, channel_n
     "bbsstats": lambda: handle_bbs_stats() if require_admin(message_from_id) else "Not authorized.",
     "maildelete": lambda: handle_mail_delete(message, message_from_id) if require_admin(message_from_id) else "Not authorized.",
     "chandel": lambda: handle_channel_delete(message, message_from_id) if require_admin(message_from_id) else "Not authorized.",
-    "approvecl": lambda: handle_checklist(message, message_from_id, deviceID),
-    "denycl": lambda: handle_checklist(message, message_from_id, deviceID),
-    "checkin": lambda: handle_checklist(message, message_from_id, deviceID),
-    "checklist": lambda: handle_checklist(message, message_from_id, deviceID),
-    "checkout": lambda: handle_checklist(message, message_from_id, deviceID),
-    "clearsms": lambda: handle_sms(message_from_id, message),
     "cmd": lambda: handle_cmd(message, message_from_id, deviceID),
     "cq": lambda: handle_ping(message_from_id, deviceID, message, hop, snr, rssi, isDM, channel_number),
     "cqcq": lambda: handle_ping(message_from_id, deviceID, message, hop, snr, rssi, isDM, channel_number),
@@ -96,31 +96,16 @@ def auto_response(message, snr, rssi, hop, pkiStatus, message_from_id, channel_n
     "echo": lambda: handle_echo(message, message_from_id, deviceID, isDM, channel_number),
     "ealert": lambda: handle_emergency_alerts(message, message_from_id, deviceID),
     "earthquake": lambda: handleEarthquake(message, message_from_id, deviceID),
-    "email:": lambda: handle_email(message_from_id, message),
+    "grid": lambda: handle_grid(message_from_id, deviceID, channel_number),
     "hfcond": hf_band_conditions,
     "history": lambda: handle_history(message, message_from_id, deviceID, isDM),
     "howfar": lambda: handle_howfar(message, message_from_id, deviceID, isDM),
     "howtall": lambda: handle_howtall(message, message_from_id, deviceID, isDM),
-    "item": lambda: handle_inventory(message, message_from_id, deviceID),
-    "itemadd": lambda: handle_inventory(message, message_from_id, deviceID),
-    "itemlist": lambda: handle_inventory(message, message_from_id, deviceID),
-    "itemloan": lambda: handle_inventory(message, message_from_id, deviceID),
-    "itemremove": lambda: handle_inventory(message, message_from_id, deviceID),
-    "itemreset": lambda: handle_inventory(message, message_from_id, deviceID),
-    "itemreturn": lambda: handle_inventory(message, message_from_id, deviceID),
-    "itemsell": lambda: handle_inventory(message, message_from_id, deviceID),
-    "itemstats": lambda: handle_inventory(message, message_from_id, deviceID),
-    "cart": lambda: handle_inventory(message, message_from_id, deviceID),
-    "cartadd": lambda: handle_inventory(message, message_from_id, deviceID),
-    "cartbuy": lambda: handle_inventory(message, message_from_id, deviceID),
-    "cartclear": lambda: handle_inventory(message, message_from_id, deviceID),
-    "cartlist": lambda: handle_inventory(message, message_from_id, deviceID),
-    "cartremove": lambda: handle_inventory(message, message_from_id, deviceID),
-    "cartsell": lambda: handle_inventory(message, message_from_id, deviceID),
     "joke": lambda: tell_joke(message_from_id),
     "latest": lambda: get_newsAPI(message, message_from_id, deviceID, isDM),
     "leaderboard": lambda: get_mesh_leaderboard(message, message_from_id, deviceID),
     "lheard": lambda: handle_lheard(message, message_from_id, deviceID, isDM),
+    "locator": lambda: handle_grid(message_from_id, deviceID, channel_number),
     "map": lambda: mapHandler(message_from_id, deviceID, channel_number, message, snr, rssi, hop),
     "messages": lambda: handle_messages(message, deviceID, channel_number, msg_history, isDM),
     "moon": lambda: handle_moon(message_from_id, deviceID, channel_number),
@@ -130,17 +115,13 @@ def auto_response(message, snr, rssi, hop, pkiStatus, message_from_id, channel_n
     "ping": lambda: handle_ping(message_from_id, deviceID, message, hop, snr, rssi, isDM, channel_number),
     "pinging": lambda: handle_ping(message_from_id, deviceID, message, hop, snr, rssi, isDM, channel_number),
     "pong": lambda: "🏓PING!!🛜",
-    "q:": lambda: quizHandler(message, message_from_id, deviceID),
-    "quiz": lambda: quizHandler(message, message_from_id, deviceID),
     "readnews": lambda: handleNews(message_from_id, deviceID, message, isDM),
     "readrss": lambda: get_rss_feed(message),
     "riverflow": lambda: handle_riverFlow(message, message_from_id, deviceID),
     "rlist": lambda: handle_repeaterQuery(message_from_id, deviceID, channel_number),
     "satpass": lambda: handle_satpass(message_from_id, deviceID, message),
-    "setemail": lambda: handle_email(message_from_id, message),
-    "setsms": lambda: handle_sms( message_from_id, message),
+    "share": lambda: handle_share(message, snr, rssi, hop, pkiStatus, message_from_id, channel_number, deviceID, isDM),
     "sitrep": lambda: handle_lheard(message, message_from_id, deviceID, isDM),
-    "sms:": lambda: handle_sms(message_from_id, message),
     "solar": lambda: drap_xray_conditions() + "\n" + solar_conditions() + "\n" + get_noaa_scales_summary(),
     "sun": lambda: handle_sun(message_from_id, deviceID, channel_number),
     "sysinfo": lambda: sysinfo(message, message_from_id, deviceID, isDM),
@@ -226,6 +207,29 @@ def handle_cmd(message, message_from_id, deviceID):
         return "🤖 just use the commands directly in chat"
     return help_message
 
+def handle_share(message, snr, rssi, hop, pkiStatus, message_from_id, channel_number, deviceID, isDM):
+    # "share <cmd>" runs <cmd> and forces the reply into the issuing channel,
+    # overriding useDMForResponse/antiSpam DM routing for this one reply only.
+    if isDM:
+        return "🤖 'share' needs to be issued in a channel."
+
+    words = message.split(' ')
+    if my_settings.cmdBang and words and words[0].startswith('!'):
+        words[0] = words[0][1:]
+    if not words or words[0].lower() != 'share' or len(words) < 2:
+        return "🤖 Usage: share <command>, e.g. share wx"
+
+    sub_message = ' '.join(words[1:]).strip()
+    sub_word = sub_message.lower().split(' ')[0].rstrip('?')
+    # trap_list check ensures the command is actually enabled in this config,
+    # not just on the static whitelist (disabled features' handlers may be unimported)
+    if sub_word not in shareableCommands or sub_word not in trap_list:
+        return "🤖 That command can't be shared to a channel."
+
+    sub_response = auto_response(sub_message, snr, rssi, hop, pkiStatus, message_from_id, channel_number, deviceID, isDM)
+    send_message(sub_response, channel_number, 0, deviceID)
+    return ""
+
 def isPlayingGame(message_from_id):
     # Games removed from mesh-ham-bot
     return False, "None"
@@ -295,10 +299,7 @@ def handle_ping(message_from_id, deviceID,  message, hop, snr, rssi, isDM, chann
                     logger.debug(f"System: Sending joke as BBS mail to @{toNode} from {get_name_from_number(message_from_id, 'short', deviceID)}")
                     short_name = get_name_from_number(message_from_id, 'short', deviceID)
                     add_mail(str(message_from_id), short_name, str(toNode), "Joke for you!", tell_joke())
-                    try:
-                        send_message(f"📬 New mail from {short_name}. Reply CM to check.", 0, toNode, rxNode)
-                    except Exception:
-                        pass
+                    send_message(f"📬 New mail from {short_name}. Reply CM to check.", 0, toNode, deviceID)
                     return f"Joke sent to {get_name_from_number(toNode, 'short', deviceID)} via BBS mail!"
 
     elif "#" in message:
@@ -373,10 +374,6 @@ def handle_emergency(message_from_id, deviceID, message):
         # alert the emergency_responder_alert_channel
         send_message(msg, my_settings.emergency_responder_alert_channel, 0, my_settings.emergency_responder_alert_interface)
         logger.warning(f"System: {message_from_id} Emergency Assistance Requested in {message}")
-        # send the message out via email/sms
-        if my_settings.enableSMTP:
-            for user in my_settings.sysopEmails:
-                send_email(user, f"Emergency Assistance Requested by {nodeInfo} in {message}", message_from_id)
         return my_settings.EMERGENCY_RESPONSE
 
 def handle_motd(message, message_from_id, isDM):
@@ -638,15 +635,6 @@ def handle_satpass(message_from_id, deviceID, message='', vox=False):
     return passes
         
 # handle_llm removed - LLM not included in mesh-ham-bot
-def handle_checklist(message, message_from_id, deviceID):
-    name = get_name_from_number(message_from_id, 'short', deviceID)
-    location = get_node_location(message_from_id, deviceID)
-    return process_checklist_command(message_from_id, message, name, location)
-
-def handle_inventory(message, message_from_id, deviceID):
-    name = get_name_from_number(message_from_id, 'short', deviceID)
-    return process_inventory_command(message_from_id, message, name)
-
 # handle_bbspost, handle_bbsread, handle_bbsdelete removed -- replaced by modules/bbs/
 def handle_messages(message, deviceID, channel_number, msg_history, isDM):
     if  "?" in message and isDM:
@@ -826,6 +814,10 @@ def handle_whereami(message_from_id, deviceID, channel_number):
         return check_throttle
     return where_am_i(str(location[0]), str(location[1]))
 
+def handle_grid(message_from_id, deviceID, channel_number):
+    location = get_node_location(message_from_id, deviceID, channel_number)
+    return get_grid_square(str(location[0]), str(location[1]))
+
 def handle_repeaterQuery(message_from_id, deviceID, channel_number):
     location = get_node_location(message_from_id, deviceID, channel_number)
     # check api_throttle
@@ -934,9 +926,6 @@ def handle_boot(mesh=True):
             if my_settings.solar_conditions_enabled:
                 logger.debug("System: Celestial Telemetry Enabled")
 
-            if my_settings.meshagesTTS:
-                logger.debug("System: Meshages TTS Text-to-Speech Enabled")
-            
             if my_settings.location_enabled:
                 if my_settings.use_meteo_wxApi:
                     logger.debug("System: Location Telemetry Enabled using Open-Meteo API")
@@ -959,9 +948,6 @@ def handle_boot(mesh=True):
                 logger.debug(f"System: RSS Feed Reader Enabled for feeds: {my_settings.rssFeedNames}")
             if my_settings.enable_headlines:
                 logger.debug("System: News Headlines Enabled from NewsAPI.org")
-            
-            if my_settings.radio_detection_enabled:
-                logger.debug(f"System: Radio Detection Enabled using rigctld at {my_settings.rigControlServerAddress} broadcasting to channels: {my_settings.sigWatchBroadcastCh}")
             
             if my_settings.file_monitor_enabled:
                 logger.warning(f"System: File Monitor Enabled for {my_settings.file_monitor_file_path}, broadcasting to channels: {my_settings.file_monitor_broadcastCh}")
@@ -990,17 +976,11 @@ def handle_boot(mesh=True):
             if my_settings.emergency_responder_enabled:
                 logger.debug(f"System: Emergency Responder Enabled on channels {my_settings.emergency_responder_alert_channel}")
             
-            if my_settings.qrz_hello_enabled:
-                if my_settings.train_qrz:
-                    logger.debug("System: QRZ Welcome/Hello Enabled with training mode")
+            if my_settings.greeter_enabled:
+                if my_settings.train_greeter:
+                    logger.debug("System: Greeter Welcome/Hello Enabled with training mode")
                 else:
-                    logger.debug("System: QRZ Welcome/Hello Enabled")
-
-            if my_settings.enableSMTP:
-                if my_settings.enableImap:
-                    logger.debug("System: SMTP Email Alerting Enabled using IMAP")
-                else:
-                    logger.warning("System: SMTP Email Alerting Enabled")
+                    logger.debug("System: Greeter Welcome/Hello Enabled")
 
         # Default Options
         if my_settings.useDMForResponse:
@@ -1037,10 +1017,6 @@ def handle_boot(mesh=True):
         if my_settings.repeater_enabled and multiple_interface:
             logger.debug(f"System: Repeater Enabled for Channels: {my_settings.repeater_channels}")
         
-        if my_settings.checklist_enabled:
-            logger.debug("System: CheckList Module Enabled")
-        if my_settings.inventory_enabled:
-            logger.debug("System: Inventory Module Enabled")
         if my_settings.ignoreChannels:
             logger.debug(f"System: Ignoring Channels: {my_settings.ignoreChannels}")
         
@@ -1314,12 +1290,6 @@ def onReceive(packet, interface):
                             # Unknown command - tell them explicitly
                             send_message("Unknown command. Try 'cmd' for a list or 'bbsmenu' for the BBS menu.", channel_number, message_from_id, rxNode)
                     
-                    # add message to tts queue
-                    if meshagesTTS:
-                        # add to the tts_read_queue
-                        readMe = f"DM from {get_name_from_number(message_from_id, 'short', rxNode)}: {message_string}"
-                        tts_read_queue.append(readMe)
-                        
                     # log the message to the message log
                     if log_messages_to_file:
                         msgLogger.info(f"Device:{rxNode} Channel:{channel_number} | {get_name_from_number(message_from_id, 'long', rxNode)} | DM | " + message_log_string)
@@ -1392,26 +1362,20 @@ def onReceive(packet, interface):
                                         send_message(rMsg, channel_number, 0, i)
                                         time.sleep(my_settings.responseDelay)
                     
-                    # if QRZ enabled check if we have said hello
-                    if my_settings.qrz_hello_enabled:
+                    # if Greeter enabled check if we have said hello
+                    if my_settings.greeter_enabled:
                         if never_seen_before(message_from_id):
                             name = get_name_from_number(message_from_id, 'short', rxNode)
                             if isinstance(name, str) and name.startswith("!") and len(name) == 9:
                                 # we didnt get a info packet yet so wait and ingore this go around
-                                logger.debug(f"System: QRZ Hello ignored, no info packet yet")
+                                logger.debug(f"System: Greeter Hello ignored, no info packet yet")
                             else:
-                                # add to qrz_hello list
+                                # record that we've greeted this node
                                 hello(message_from_id, name)
                                 # send a hello message as a DM
-                                if not my_settings.train_qrz:
-                                    send_message(f"Hello {name} {qrz_hello_string}", channel_number, message_from_id, rxNode, reply_id=packet_id)
+                                if not my_settings.train_greeter:
+                                    send_message(f"Hello {name} {greeter_hello_string}", channel_number, message_from_id, rxNode, reply_id=packet_id)
 
-                    # handle mini games 
-                    # add message to tts queue
-                    if my_settings.meshagesTTS and channel_number == my_settings.ttsChannels:
-                        # add to the tts_read_queue
-                        readMe = f"DM from {get_name_from_number(message_from_id, 'short', rxNode)}: {message_string}"
-                        tts_read_queue.append(readMe)
         else:
             # Evaluate non TEXT_MESSAGE_APP packets
             consumeMetadata(packet, rxNode, channel_number)
@@ -1448,22 +1412,6 @@ async def main():
 
         if my_settings.file_monitor_enabled:
             tasks.append(asyncio.create_task(handleFileWatcher(), name="file_monitor"))
-        
-        if my_settings.radio_detection_enabled:
-            tasks.append(asyncio.create_task(handleSignalWatcher(), name="hamlib"))
-
-        if my_settings.voxDetectionEnabled:
-            from modules.radio import voxMonitor
-            tasks.append(asyncio.create_task(voxMonitor(), name="vox_detection"))
-
-        if my_settings.meshagesTTS:
-            tasks.append(asyncio.create_task(handleTTS(), name="tts_handler"))
-        
-        if my_settings.wsjtx_detection_enabled:
-            tasks.append(asyncio.create_task(handleWsjtxWatcher(), name="wsjtx_monitor"))
-        
-        if my_settings.js8call_detection_enabled:
-            tasks.append(asyncio.create_task(handleJs8callWatcher(), name="js8call_monitor"))
 
         if my_settings.scheduler_enabled:
             from modules.scheduler import run_scheduler_loop, setup_scheduler

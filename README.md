@@ -17,8 +17,9 @@ A Meshtastic mesh radio bot forked from meshing-around, with a SQLite-backed BBS
 - `bbstools.py` replaced entirely by `modules/bbs/` — a proper Python package with a SQLite backend
 - Bulletin boards, direct mail, channel directory, admin management, and ban management
 - Both interaction modes: command-style (`bbspost`, `bbsread`, etc.) and stateful menu (`HELP`)
-- Removed: games (except `joke.py`), LLM, SMTP, survey, UDP, GPIO, inventory, bbstools
-- Kept: ham radio tools, WX, APRS, checklist, scheduler, DX, QRZ, ping/ACK
+- Removed: games (except `joke.py`), LLM, SMTP, survey, UDP, GPIO, inventory, checklist/check-in, bbstools, radio bridge (hamlib/WSJT-X/JS8Call/VOX/TTS)
+- Kept: ham radio tools, WX, scheduler, DX, greeter (new-node hello), ping/ACK
+- Added: `grid`/`locator` (Maidenhead grid square)
 
 ---
 

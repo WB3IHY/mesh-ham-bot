@@ -17,7 +17,7 @@ from modules.settings import *
 from modules.log import logger, getPrettyTime, CustomFormatter
 
 # Global Variables
-trap_list = ("cmd","cmd?","bannode",) # base commands
+trap_list = ("cmd","cmd?","bannode","share",) # base commands
 help_message = "Bot CMD?:"
 asyncLoop = asyncio.new_event_loop()
 main_loop = None  # set by mesh_bot.main() so onDisconnect can schedule coroutines thread-safely
@@ -50,11 +50,6 @@ if motd_enabled:
     trap_list = trap_list + trap_list_motd
     help_message = help_message + ", motd"
 
-# SMTP Configuration
-if enableSMTP:
-    trap_list = trap_list + trap_list_smtp
-    help_message = help_message + ", email:, sms:"
-
 # Emergency Responder Configuration
 if emergency_responder_enabled:
     trap_list_emergency = ("emergency", "911", "112", "999", "police", "fire", "ambulance", "rescue")
@@ -85,7 +80,7 @@ if enableCmdHistory:
 if location_enabled:
     from modules.locationdata import * # from the spudgunman/meshing-around repo
     trap_list = trap_list + trap_list_location
-    help_message = help_message + ", whereami, wx, howfar"
+    help_message = help_message + ", whereami, wx, howfar, grid"
     if enableGBalerts and not enableDEalerts:
         from modules.globalalert import * # from the spudgunman/meshing-around repo
         logger.warning(f"System: GB Alerts not functional at this time need to find a source API")
@@ -202,21 +197,9 @@ if store_forward_enabled:
     trap_list = trap_list + ("messages",)
     help_message = help_message + ", messages"
 
-# QRZ Configuration
-if qrz_hello_enabled:
-    from modules.qrz import * # from the spudgunman/meshing-around repo
-    #trap_list = trap_list + trap_list_qrz # items qrz, qrz?, qrzcall
-    #help_message = help_message + ", qrz"
-
-# CheckList Configuration
-if checklist_enabled:
-    from modules.checklist import * # from the spudgunman/meshing-around repo
-    trap_list = trap_list + trap_list_checklist # items checkin, checkout, checklist, purgein, purgeout
-    help_message = help_message + ", checkin, checkout"
-
-# Inventory and POS Configuration
-    trap_list = trap_list + trap_list_inventory # items item, itemlist, itemsell, etc.
-    help_message = help_message + ", item, cart"
+# Greeter Configuration
+if greeter_enabled:
+    from modules.greeter import * # say hello to new nodes we haven't seen before
 
 # File Monitor Configuration
 if file_monitor_enabled or read_news_enabled or bee_enabled or enable_runShellCmd or cmdShellSentryAlerts:
@@ -1194,16 +1177,9 @@ def should_send_alert(alert_type, new_message, min_interval=1):
 
 def handleAlertBroadcast(deviceID=1):
     try:
-        alertUk = alertDe = alertFema = wxAlert = volcanoAlert = overdueAlerts = NO_ALERTS
+        alertUk = alertDe = alertFema = wxAlert = volcanoAlert = NO_ALERTS
         alertWx = False
         clock = datetime.now()
-
-        # Overdue check-in alert
-        if checklist_enabled:
-            overdueAlerts = format_overdue_alert()
-            if overdueAlerts:
-                if should_send_alert("overdue", overdueAlerts, min_interval=300): # 5 minutes interval for overdue alerts
-                    send_message(overdueAlerts, emergency_responder_alert_channel, 0, emergency_responder_alert_interface)
 
         # Only allow API call every alert_duration minutes at xx:00, xx:20, xx:40
         if not (clock.minute % alert_duration == 0 and clock.second <= 17):
@@ -2069,34 +2045,6 @@ def get_sysinfo(nodeID=0, deviceID=1):
     sysinfo += f"📊{stats}"
     return sysinfo
 
-async def handleSignalWatcher():
-    from modules.radio import signalWatcher
-    from modules.settings import sigWatchBroadcastCh, sigWatchBroadcastInterface, lastHamLibAlert
-    # monitor rigctld for signal strength and frequency
-    while True:
-        msg =  await signalWatcher()
-        if msg != ERROR_FETCHING_DATA and msg is not None:
-            logger.debug(f"System: Detected Alert from Hamlib {msg}")
-            
-            # check we are not spammig the channel limit messages to once per minute
-            if time.time() - lastHamLibAlert > 60:
-                lastHamLibAlert = time.time()
-                # if sigWatchBrodcastCh list contains multiple channels, broadcast to all
-                if type(sigWatchBroadcastCh) is list:
-                    for ch in sigWatchBroadcastCh:
-                        if antiSpam and ch != publicChannel:
-                            send_message(msg, int(ch), 0, sigWatchBroadcastInterface)
-                        else:
-                            logger.warning(f"System: antiSpam prevented Alert from Hamlib {msg}")
-                else:
-                    if antiSpam and sigWatchBroadcastCh != publicChannel:
-                        send_message(msg, int(sigWatchBroadcastCh), 0, sigWatchBroadcastInterface)
-                    else:
-                        logger.warning(f"System: antiSpam prevented Alert from Hamlib {msg}")
-
-        await asyncio.sleep(1)
-        pass
-
 async def handleFileWatcher():
     global lastFileAlert
     # monitor the file system for changes
@@ -2131,62 +2079,6 @@ async def handleFileWatcher():
 
         await asyncio.sleep(1)
         pass
-
-async def handleWsjtxWatcher():
-    # monitor WSJT-X UDP broadcasts for decode messages
-    from modules.radio import wsjtxMsgQueue, wsjtxMonitor
-    from modules.settings import sigWatchBroadcastCh, sigWatchBroadcastInterface
-    
-    # Start the WSJT-X monitor task
-    monitor_task = asyncio.create_task(wsjtxMonitor())
-    
-    while True:
-        if wsjtxMsgQueue:
-            msg = wsjtxMsgQueue.pop(0)
-            logger.debug(f"System: Detected message from WSJT-X: {msg}")
-            
-            # Broadcast to configured channels
-            if type(sigWatchBroadcastCh) is list:
-                for ch in sigWatchBroadcastCh:
-                    if antiSpam and int(ch) != publicChannel:
-                        send_message(msg, int(ch), 0, sigWatchBroadcastInterface)
-                    else:
-                        logger.warning(f"System: antiSpam prevented Alert from WSJT-X")
-            else:
-                if antiSpam and sigWatchBroadcastCh != publicChannel:
-                    send_message(msg, int(sigWatchBroadcastCh), 0, sigWatchBroadcastInterface)
-                else:
-                    logger.warning(f"System: antiSpam prevented Alert from WSJT-X")
-        
-        await asyncio.sleep(0.5)
-
-async def handleJs8callWatcher():
-    # monitor JS8Call TCP API for messages
-    from modules.radio import js8callMsgQueue, js8callMonitor
-    from modules.settings import sigWatchBroadcastCh, sigWatchBroadcastInterface
-    
-    # Start the JS8Call monitor task
-    monitor_task = asyncio.create_task(js8callMonitor())
-    
-    while True:
-        if js8callMsgQueue:
-            msg = js8callMsgQueue.pop(0)
-            logger.debug(f"System: Detected message from JS8Call: {msg}")
-            
-            # Broadcast to configured channels
-            if type(sigWatchBroadcastCh) is list:
-                for ch in sigWatchBroadcastCh:
-                    if antiSpam and int(ch) != publicChannel:
-                        send_message(msg, int(ch), 0, sigWatchBroadcastInterface)
-                    else:
-                        logger.warning(f"System: antiSpam prevented Alert from JS8Call")
-            else:
-                if antiSpam and sigWatchBroadcastCh != publicChannel:
-                    send_message(msg, int(sigWatchBroadcastCh), 0, sigWatchBroadcastInterface)
-                else:
-                    logger.warning(f"System: antiSpam prevented Alert from JS8Call")
-        
-        await asyncio.sleep(0.5)
 
 async def retry_interface(nodeID):
     global retry_int1, retry_int2, retry_int3, retry_int4, retry_int5, retry_int6, retry_int7, retry_int8, retry_int9
@@ -2286,11 +2178,6 @@ async def handleSentinel(deviceID):
             # Send message alert
             logger.warning(f"System: {detectedNearby} on Interface{deviceID} Accuracy is {resolution}bits")
             send_message(f"Sentry{deviceID}: {detectedNearby}", secure_channel, 0, secure_interface)
-            
-            # Send email alerts
-            if enableSMTP and email_sentry_alerts:
-                for email in sysopEmails:
-                    send_email(email, f"Sentry{deviceID}: {detectedNearby}")
 
             # Execute external script alerts
             if cmdShellSentryAlerts and distance <= sentry_radius:
@@ -2305,42 +2192,6 @@ async def handleSentinel(deviceID):
             handleSentinel_loop = 0 # Loop reset
     else:
         handleSentinel_loop = 0  # Reset if nothing detected
-
-async def process_vox_queue():
-    # process the voxMsgQueue
-    from modules.settings import sigWatchBroadcastCh, sigWatchBroadcastInterface, voxMsgQueue
-    items_to_process = voxMsgQueue[:]
-    voxMsgQueue.clear()
-    if len(items_to_process) > 0:
-        logger.debug(f"System: Processing {len(items_to_process)} items in voxMsgQueue")
-        for item in items_to_process:
-            message = item
-            for channel in sigWatchBroadcastCh:
-                if antiSpam and int(channel) != publicChannel:
-                    send_message(message, int(channel), 0, sigWatchBroadcastInterface)
-
-async def handleTTS():
-    from modules.radio import generate_and_play_tts, available_voices
-    from modules.settings import ttsnoWelcome, tts_read_queue
-    logger.debug("System: Handle TTS started")
-    if not ttsnoWelcome:
-        logger.debug("System: Playing TTS welcome message to disable set 'ttsnoWelcome = True' in settings.ini")
-        await generate_and_play_tts("Hey its Cheerpy! Thanks for using Meshing-Around on Meshtasstic!", available_voices[0])
-    try:
-        while True:
-            if tts_read_queue:
-                tts_read = tts_read_queue.pop(0)
-                voice = available_voices[0]
-                # ensure the tts_read ends with a punctuation mark
-                if not tts_read.endswith(('.', '!', '?')):
-                    tts_read += '.'
-                try:
-                    await generate_and_play_tts(tts_read, voice)
-                except Exception as e:
-                    logger.error(f"System: TTShandler error: {e}")
-            await asyncio.sleep(1)
-    except Exception as e:
-        logger.critical(f"System: handleTTS crashed: {e}")
 
 async def watchdog():
     global localTelemetryData, retry_int1, retry_int2, retry_int3, retry_int4, retry_int5, retry_int6, retry_int7, retry_int8, retry_int9
@@ -2375,7 +2226,7 @@ async def watchdog():
 
                     handleMultiPing(0, i)
 
-                    if usAlerts or checklist_enabled or enableDEalerts:
+                    if usAlerts or enableDEalerts:
                         handleAlertBroadcast(i)
 
                     intData = displayNodeTelemetry(0, i)
@@ -2387,11 +2238,6 @@ async def watchdog():
         # check for noisy telemetry
         if noisyNodeLogging:
             noisyTelemetryCheck()
-
-        # vox queue processing
-        if voxDetectionEnabled:
-            await process_vox_queue()
-        
 
 def saveAllData():
     try:

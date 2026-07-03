@@ -70,8 +70,16 @@ Tables: bulletins, mail, admins, banned, channels
 - Routing errors (ROUTING_APP Reason:NONE) in logs are normal ACK behavior
 
 ## What Was Removed from meshing-around
-Games (except joke.py), LLM, SMTP, survey, UDP, GPIO, inventory, bbstools.
+Games (except joke.py), LLM, SMTP, survey, UDP, GPIO, inventory, checklist/check-in, bbstools,
+radio.py bridge (hamlib rig monitoring, WSJT-X/JS8Call digital-mode monitoring, VOX detection, TTS).
 The old file-based ban list (bbs_ban_list.txt) is replaced by the banned table in SQLite.
+The DX cluster spotter (modules/dxspot.py) is unrelated and was kept — its config moved from
+the old `[radioMon] dxspotter_enabled` to its own `[dxspotter] enabled` section.
+
+## Naming Note
+The old `qrz` module (says hello to newly-seen nodes) was renamed to `greeter` —
+it was never a QRZ.com integration, just a Q-code name ("who is calling me?") that
+was easy to mistake for one. Config section is `[greeter]`, db is `data/greeter.db`.
 
 ## Systemd Service
 Name: mesh-ham-bot

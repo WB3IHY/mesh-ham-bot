@@ -16,7 +16,15 @@ import csv
 import os
 import sqlite3
 
-trap_list_location = ("whereami", "wx", "wxa", "wxalert", "rlist", "ea", "ealert", "riverflow", "valert", "earthquake", "howfar", "map",)
+trap_list_location = ("whereami", "wx", "wxa", "wxalert", "rlist", "ea", "ealert", "riverflow", "valert", "earthquake", "howfar", "map", "grid", "locator",)
+
+def get_grid_square(lat=0, lon=0):
+    # Maidenhead grid locator for the node's last known position
+    if int(float(lat)) == 0 and int(float(lon)) == 0:
+        logger.error("Location: No GPS data, try sending location")
+        return my_settings.NO_DATA_NOGPS
+    grid = mh.to_maiden(float(lat), float(lon))
+    return f"Grid Square: {grid}"
 
 def where_am_i(lat=0, lon=0, short=False, zip=False):
     whereIam = ""

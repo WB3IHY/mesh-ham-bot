@@ -19,7 +19,6 @@ repeater_channels = [] # list of channels to listen on for repeater mode, import
 antiSpam = True # anti-spam feature to prevent flooding public channel
 ping_enabled = True # ping feature to respond to pings, ack's etc.
 sitrep_enabled = True # sitrep feature to respond to sitreps
-lastHamLibAlert = 0 # last alert from hamlib
 lastFileAlert = 0 # last alert from file monitor
 max_retry_count1 = max_retry_count2 = max_retry_count3 = max_retry_count4 = max_retry_count5 = max_retry_count6 = max_retry_count7 = max_retry_count8 = max_retry_count9 = 4 # default retry count for interfaces
 retry_int1 = False
@@ -31,10 +30,6 @@ seenNodes = [] # list to hold the last seen nodes
 cmdHistory = [] # list to hold the command history for lheard and history commands
 msg_history = [] # list to hold the message history for the messages command
 max_bytes = 200 # Meshtastic has ~237 byte limit, use conservative 200 bytes for message content
-voxMsgQueue = [] # queue for VOX detected messages
-tts_read_queue = [] # queue for TTS messages
-wsjtxMsgQueue = [] # queue for WSJT-X detected messages
-js8callMsgQueue = [] # queue for JS8Call detected messages
 autoBanlist = [] # list of nodes to autoban for repeated offenses
 apiThrottleList = [] # list of nodes to throttle API requests for repeated offenses
 # Game trackers
@@ -95,8 +90,8 @@ if 'repeater' not in config:
     config['repeater'] = {'enabled': 'False', 'repeater_channels': ''}
     config.write(open(config_file, 'w'))
 
-if 'radioMon' not in config:
-    config['radioMon'] = {'enabled': 'False', 'rigControlServerAddress': 'localhost:4532', 'sigWatchBrodcastCh': '2', 'signalDetectionThreshold': '-10', 'signalHoldTime': '10', 'signalCooldown': '5', 'signalCycleLimit': '5'}
+if 'dxspotter' not in config:
+    config['dxspotter'] = {'enabled': 'True'}
     config.write(open(config_file, 'w'))
 
 if 'games' not in config:
@@ -119,20 +114,8 @@ if 'emergencyHandler' not in config:
     config['emergencyHandler'] = {'enabled': 'False', 'alert_channel': '2', 'alert_interface': '1', 'email': ''}
     config.write(open(config_file, 'w'))
 
-if 'smtp' not in config:
-    config['smtp'] = {'sysopEmails': '', 'enableSMTP': 'False', 'enableImap': 'False'}
-    config.write(open(config_file, 'w'))
-
-if 'checklist' not in config:
-    config['checklist'] = {'enabled': 'False', 'checklist_db': 'data/checklist.db'}
-    config.write(open(config_file, 'w'))
-
-if 'qrz' not in config:
-    config['qrz'] = {'enabled': 'False', 'qrz_db': 'data/qrz.db', 'qrz_hello_string': 'send CMD or DM me for more info.'}
-    config.write(open(config_file, 'w'))
-
-if 'inventory' not in config:
-    config['inventory'] = {'enabled': 'False', 'inventory_db': 'data/inventory.db', 'disable_penny': 'False'}
+if 'greeter' not in config:
+    config['greeter'] = {'enabled': 'False', 'greeter_db': 'data/greeter.db', 'greeter_hello_string': 'send CMD or DM me for more info.'}
     config.write(open(config_file, 'w'))
 
 if 'location' not in config:
@@ -297,7 +280,6 @@ try:
     sentryIgnoreList = config['sentry'].get('sentryIgnoreList', '').split(',')
     sentryWatchList = config['sentry'].get('sentryWatchList', '').split(',')
     sentry_radius = config['sentry'].getint('SentryRadius', 100) # default 100 meters
-    email_sentry_alerts = config['sentry'].getboolean('emailSentryAlerts', False) # default False
     highfly_enabled = config['sentry'].getboolean('highFlyingAlert', True) # default True
     highfly_altitude = config['sentry'].getint('highFlyingAlertAltitude', 2000) # default 2000 meters
     highfly_channel = config['sentry'].getint('highFlyingAlertChannel', 2) # default 2
@@ -376,45 +358,17 @@ try:
     bbsdb = config['bbs'].get('bbsdb', 'data/bbs.db')
     bbs_admin_list = config['bbs'].get('bbs_admin_list', '').split(',')
     
-    # checklist
-    checklist_enabled = config['checklist'].getboolean('enabled', False)
-    checklist_db = config['checklist'].get('checklist_db', 'data/checklist.db')
-    reverse_in_out = config['checklist'].getboolean('reverse_in_out', False)
-    checklist_auto_approve = config['checklist'].getboolean('auto_approve', True) # default True
+    # greeter (say hello to new nodes)
+    greeter_enabled = config['greeter'].getboolean('enabled', False)
+    greeter_db = config['greeter'].get('greeter_db', 'data/greeter.db')
+    greeter_hello_string = config['greeter'].get('greeter_hello_string', 'MeshBot says Hello! DM for more info.')
+    train_greeter = config['greeter'].getboolean('training', True)
 
-    # qrz hello
-    qrz_hello_enabled = config['qrz'].getboolean('enabled', False)
-    qrz_db = config['qrz'].get('qrz_db', 'data/qrz.db')
-    qrz_hello_string = config['qrz'].get('qrz_hello_string', 'MeshBot says Hello! DM for more info.')
-    train_qrz = config['qrz'].getboolean('training', True)
-    
-    # inventory and POS
-    inventory_enabled = config['inventory'].getboolean('enabled', False)
-    inventory_db = config['inventory'].get('inventory_db', 'data/inventory.db')
-    disable_penny = config['inventory'].getboolean('disable_penny', False)
-    
     # location mapping
     locations_db = config['location'].get('locations_db', 'data/locations.db')
     public_location_admin_manage = config['location'].getboolean('public_location_admin_manage', False)
     delete_public_locations_admins_only = config['location'].getboolean('delete_public_locations_admins_only', False)
     
-    # E-Mail Settings
-    sysopEmails = config['smtp'].get('sysopEmails', '').split(',')
-    enableSMTP = config['smtp'].getboolean('enableSMTP', False)
-    enableImap = config['smtp'].getboolean('enableImap', False)
-    SMTP_SERVER = config['smtp'].get('SMTP_SERVER', 'smtp.gmail.com')
-    SMTP_PORT = config['smtp'].getint('SMTP_PORT', 587)
-    FROM_EMAIL = config['smtp'].get('FROM_EMAIL', 'none@gmail.com')
-    SMTP_AUTH = config['smtp'].getboolean('SMTP_AUTH', True)
-    SMTP_USERNAME = config['smtp'].get('SMTP_USERNAME', FROM_EMAIL)
-    SMTP_PASSWORD = config['smtp'].get('SMTP_PASSWORD', 'password')
-    EMAIL_SUBJECT = config['smtp'].get('EMAIL_SUBJECT', 'Meshtastic✉️')
-    IMAP_SERVER = config['smtp'].get('IMAP_SERVER', 'imap.gmail.com')
-    IMAP_PORT = config['smtp'].getint('IMAP_PORT', 993)
-    IMAP_USERNAME = config['smtp'].get('IMAP_USERNAME', SMTP_USERNAME)
-    IMAP_PASSWORD = config['smtp'].get('IMAP_PASSWORD', SMTP_PASSWORD)
-    IMAP_FOLDER = config['smtp'].get('IMAP_FOLDER', 'inbox')
-
     # repeater
     repeater_enabled = config['repeater'].getboolean('enabled', False)
     repeater_channels = config['repeater'].get('repeater_channels', '').split(',')
@@ -429,36 +383,8 @@ try:
     schedulerValue = config['scheduler'].get('value', '') # default empty
     schedulerMotd = config['scheduler'].getboolean('schedulerMotd', False) # default False
 
-    # radio monitoring
-    radio_detection_enabled = config['radioMon'].getboolean('enabled', False)
-    dxspotter_enabled = config['radioMon'].getboolean('dxspotter_enabled', True) # default True
-    rigControlServerAddress = config['radioMon'].get('rigControlServerAddress', 'localhost:4532') # default localhost:4532
-    sigWatchBroadcastCh = config['radioMon'].get('sigWatchBroadcastCh', '2').split(',') # default Channel 2
-    sigWatchBroadcastInterface = config['radioMon'].getint('sigWatchBroadcastInterface', 1) # default interface 1
-    signalDetectionThreshold = config['radioMon'].getint('signalDetectionThreshold', -10) # default -10 dBm
-    signalHoldTime = config['radioMon'].getint('signalHoldTime', 10) # default 10 seconds
-    signalCooldown = config['radioMon'].getint('signalCooldown', 5) # default 1 second
-    signalCycleLimit = config['radioMon'].getint('signalCycleLimit', 5) # default 5 cycles, used with SIGNAL_COOLDOWN
-    voxDetectionEnabled = config['radioMon'].getboolean('voxDetectionEnabled', False) # default VOX detection disabled
-    voxDescription = config['radioMon'].get('voxDescription', 'VOX') # default VOX detected audio message
-    useLocalVoxModel = config['radioMon'].getboolean('useLocalVoxModel', False) # default False
-    localVoxModelPath = config['radioMon'].get('localVoxModelPath', 'no') # default models/vox.tflite
-    voxLanguage = config['radioMon'].get('voxLanguage', 'en-US') # default en-US
-    voxInputDevice = config['radioMon'].get('voxInputDevice', 'default') # default default
-    voxOnTrapList = config['radioMon'].getboolean('voxOnTrapList', False) # default False
-    voxTrapList = config['radioMon'].get('voxTrapList', 'chirpy').split(',') # default chirpy
-    voxEnableCmd = config['radioMon'].getboolean('voxEnableCmd', True) # default True
-    meshagesTTS = config['radioMon'].getboolean('meshagesTTS', False) # default False
-    ttsChannels = config['radioMon'].get('ttsChannels', '2').split(',') # default Channel 2
-    ttsnoWelcome = config['radioMon'].getboolean('ttsnoWelcome', False) # default False
-    
-    # WSJT-X and JS8Call monitoring
-    wsjtx_detection_enabled = config['radioMon'].getboolean('wsjtxDetectionEnabled', False) # default WSJT-X detection disabled
-    wsjtx_udp_server_address = config['radioMon'].get('wsjtxUdpServerAddress', '127.0.0.1:2237') # default localhost:2237
-    wsjtx_watched_callsigns = config['radioMon'].get('wsjtxWatchedCallsigns', '') # default empty (all callsigns)
-    js8call_detection_enabled = config['radioMon'].getboolean('js8callDetectionEnabled', False) # default JS8Call detection disabled
-    js8call_server_address = config['radioMon'].get('js8callServerAddress', '127.0.0.1:2442') # default localhost:2442
-    js8call_watched_callsigns = config['radioMon'].get('js8callWatchedCallsigns', '') # default empty (all callsigns)
+    # DX cluster spotter
+    dxspotter_enabled = config['dxspotter'].getboolean('enabled', True) # default True
 
     # file monitor
     file_monitor_enabled = config['fileMon'].getboolean('filemon_enabled', False)

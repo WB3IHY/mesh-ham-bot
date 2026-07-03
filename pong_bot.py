@@ -566,9 +566,6 @@ def handle_boot(mesh=True):
             if my_settings.rssEnable:
                 logger.debug(f"System: RSS Feed Reader Enabled for feeds: {rssFeedNames}")
             
-            if my_settings.radio_detection_enabled:
-                logger.debug(f"System: Radio Detection Enabled using rigctld at {my_settings.rigControlServerAddress} broadcasting to channels: {my_settings.sigWatchBroadcastCh} for {get_freq_common_name(get_hamlib('f'))}")
-            
             if my_settings.file_monitor_enabled:
                 logger.warning(f"System: File Monitor Enabled for {my_settings.file_monitor_file_path}, broadcasting to channels: {my_settings.file_monitor_broadcastCh}")
             if my_settings.enable_runShellCmd:
@@ -594,17 +591,12 @@ def handle_boot(mesh=True):
             if my_settings.volcanoAlertBroadcastEnabled:
                 logger.debug(f"System: Volcano Alert Broadcast Enabled on channels {my_settings.volcanoAlertBroadcastChannel}")
             
-            if my_settings.qrz_hello_enabled:
-                if my_settings.train_qrz:
-                    logger.debug("System: QRZ Welcome/Hello Enabled with training mode")
+            if my_settings.greeter_enabled:
+                if my_settings.train_greeter:
+                    logger.debug("System: Greeter Welcome/Hello Enabled with training mode")
                 else:
-                    logger.debug("System: QRZ Welcome/Hello Enabled")
+                    logger.debug("System: Greeter Welcome/Hello Enabled")
 
-            if my_settings.enableSMTP:
-                if my_settings.enableImap:
-                    logger.debug("System: SMTP Email Alerting Enabled using IMAP")
-                else:
-                    logger.warning("System: SMTP Email Alerting Enabled")
 
         # Default Options
         if my_settings.useDMForResponse:
@@ -641,9 +633,6 @@ def handle_boot(mesh=True):
         if my_settings.repeater_enabled and multiple_interface:
             logger.debug(f"System: Repeater Enabled for Channels: {my_settings.repeater_channels}")
         
-        if my_settings.checklist_enabled:
-            logger.debug("System: CheckList Module Enabled")
-        
         if my_settings.ignoreChannels:
             logger.debug(f"System: Ignoring Channels: {my_settings.ignoreChannels}")
         
@@ -679,12 +668,6 @@ async def main():
         if my_settings.file_monitor_enabled:
             tasks.append(asyncio.create_task(handleFileWatcher(), name="file_monitor"))
         
-        if my_settings.radio_detection_enabled:
-            tasks.append(asyncio.create_task(handleSignalWatcher(), name="hamlib"))
-
-        if my_settings.voxDetectionEnabled:
-            tasks.append(asyncio.create_task(voxMonitor(), name="vox_detection"))
-
         if my_settings.scheduler_enabled:
             from modules.scheduler import run_scheduler_loop, setup_scheduler
             setup_scheduler(schedulerMotd, MOTD, schedulerMessage, schedulerChannel, schedulerInterface,

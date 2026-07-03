@@ -8,12 +8,9 @@ This document provides an overview of all modules available in the Mesh-Bot proj
 - [Overview](#overview)
 - [Networking](#networking)
 - [BBS (Bulletin Board System)](#bbs-bulletin-board-system)
-- [Checklist](#checklist)
 - [Location & Weather](#location--weather)
 - [EAS & Emergency Alerts](#eas--emergency-alerts)
 - [File Monitoring & News](#file-monitoring--news)
-- [Radio Monitoring](#radio-monitoring)
-- [Voice Commands (VOX)](#voice-commands-vox)
 - [Wikipedia Search](#wikipedia-search)
 - [News & Headlines (`latest` Command)](#news--headlines-latest-command)
 - [DX Spotter Module](#dx-spotter-module)
@@ -135,7 +132,7 @@ Use `ping?` in DM for a quick help message on all ping options.
 | `whoami` | Returns details of the node asking, also returned when position exchanged 📍 | ✅ |
 | `whois` | Returns details known about node, more data with bbsadmin node | ✅ |
 | `echo` | Echo string back, disabled by default | ✅ |
-| `bannode` | Admin option to prevent a node from using bot. `bannode list` will load and use the data/bbs_ban_list.txt db | ✅ |
+| `ban`, `unban`, `banlist` | BBS admin: ban/unban a node or list banned nodes (SQLite `banned` table, admin-only) | ✅ |
 
 ---
 
@@ -149,69 +146,9 @@ Use `ping?` in DM for a quick help message on all ping options.
 | `bbspost`    | Post a message or DM                          |
 | `bbsdelete`  | Delete a message                              |
 | `bbsinfo`    | BBS stats (sysop)                             |
-| `bbslink`    | Link messages between BBS systems             |
+| `bbsdm`      | Send a direct message to another node via BBS |
 
 Enable in `[bbs]` section of `config.ini`.
-
-more at [meshBBS: How-To & API Documentation](bbstools.md)
-
----
-
-## Checklist
-
-### Enhanced Check-in/Check-out System
-
-The checklist module provides asset tracking and accountability features with safety monitoring capabilities.
-
-#### Basic Commands
-
-| Command      | Description                                   |
-|--------------|-----------------------------------------------|
-| `checkin`    | Check in a node/asset                         |
-| `checkout`   | Check out a node/asset                        |
-| `checklist`  | Show active check-ins                         |
-| `approvecl`  | Admin Approve id                              |
-| `denycl`     | Admin Remove id                               |
-
-#### Advanced Features
-
-- **Safety Monitoring with Time Intervals**
-  - Check in with an expected interval: `checkin 60 Hunting in tree stand`
-  - The system will track if you don't check back in within the specified time (in minutes)
-  - Ideal for solo activities, remote work, or safety accountability
-
-- **Approval Workflow**
-  - `approvecl <id>` - Approve a pending check-in (admin)
-  - `denycl <id>` - Deny/remove a check-in (admin)
-
-more at [modules/checklist.md](checklist.md)
-
-#### Examples
-
-```
-# Basic check-in
-checkin Arrived at campsite
-
-# Check-in with 30-minute monitoring interval
-checkin 30 Solo hiking on north trail
-
-# Check out when done
-checkout Heading back to base
-
-# View all active check-ins
-checklist
-```
-
-#### Configuration
-
-Enable in `[checklist]` section of `config.ini`:
-
-```ini
-[checklist]
-enabled = True
-checklist_db = data/checklist.db
-reverse_in_out = False
-```
 
 ---
 
@@ -234,6 +171,7 @@ reverse_in_out = False
 | `howtall`    | Calculate height using sun angle                        |
 | `whereami`   | Show current location/address                           |
 | `map`        | Save/retrieve locations, get headings, manage location database |
+| `grid`, `locator` | Maidenhead grid square for current location         |
 Configure in `[location]` section of `config.ini`.
 
 
@@ -386,97 +324,6 @@ Configure in `[fileMon]` section of `config.ini`.
 
 ---
 
-## Radio Monitoring
-
-The Radio Monitoring module provides several ways to integrate amateur radio software with the mesh network.
-
-### Hamlib Integration
-
-Monitors signal strength (S-meter) from a connected radio via Hamlib's `rigctld` daemon. When the signal exceeds a configured threshold, it broadcasts an alert to the mesh network with frequency and signal strength information.
-
-### WSJT-X Integration
-
-Monitors WSJT-X decode messages (FT8, FT4, WSPR, etc.) via UDP and forwards them to the mesh network. You can optionally filter by specific callsigns.
-
-**Features:**
-- Listens to WSJT-X UDP broadcasts (default port 2237)
-- Decodes WSJT-X protocol messages
-- Filters by watched callsigns (or monitors all if no filter is set)
-- Forwards decode messages with SNR information to configured mesh channels
-
-**Example Output:**
-```
-WSJT-X FT8: CQ K7MHI CN87 (+12dB)
-```
-
-### JS8Call Integration
-
-Monitors JS8Call messages via TCP API and forwards them to the mesh network. You can optionally filter by specific callsigns.
-
-**Features:**
-- Connects to JS8Call TCP API (default port 2442)
-- Listens for directed and activity messages
-- Filters by watched callsigns (or monitors all if no filter is set)
-- Forwards messages with SNR information to configured mesh channels
-
-**Example Output:**
-```
-JS8Call from W1ABC: HELLO WORLD (+8dB)
-```
-
-### Configuration
-
-Configure all radio monitoring features in the `[radioMon]` section of `config.ini`:
-
-```ini
-[radioMon]
-# Hamlib monitoring
-enabled = False
-rigControlServerAddress = localhost:4532
-signalDetectionThreshold = -10
-
-# WSJT-X monitoring
-wsjtxDetectionEnabled = False
-wsjtxUdpServerAddress = 127.0.0.1:2237
-wsjtxWatchedCallsigns = K7MHI,W1AW
-
-# JS8Call monitoring  
-js8callDetectionEnabled = False
-js8callServerAddress = 127.0.0.1:2442
-js8callWatchedCallsigns = K7MHI,W1AW
-
-# Broadcast settings (shared by all radio monitoring)
-sigWatchBroadcastCh = 2
-sigWatchBroadcastInterface = 1
-```
-
-**Configuration Notes:**
-- Leave `wsjtxWatchedCallsigns` or `js8callWatchedCallsigns` empty to monitor all callsigns
-- Callsigns are comma-separated, case-insensitive
-- Both services can run simultaneously
-- Messages are broadcast to the same channels as Hamlib alerts
-
----
-
-## Voice Commands (VOX)
-
-You can trigger select bot functions using voice commands with the "Hey Chirpy!" wake word.  
-Just say "Hey Chirpy..." followed by one of the supported commands:
-
-| Voice Command | Description                                 |
-|---------------|---------------------------------------------|
-| `joke`        | Tells a joke                                |
-| `weather`     | Returns local weather forecast              |
-| `moon`        | Returns moonrise/set and phase info         |
-| `daylight`    | Returns sunrise/sunset times                |
-| `river`       | Returns NOAA river flow info                |
-| `tide`        | Returns NOAA tide information               |
-| `satellite`   | Returns satellite pass info                 |
-
-Enable and configure VOX features in the `[radioMon]` section of `config.ini`.
-
----
-
 ## Wikipedia Search
 
 | Command      | Description                                   |
@@ -593,8 +440,8 @@ W1XYZ @7.030 MHz CW SOTA W7W/WE-001 by:K7MHI CN88
 
 ### Configuration
 ```ini
-[radioMon]
-dxspotter_enabled = True
+[dxspotter]
+enabled = True
 ```
 
 ---
@@ -605,7 +452,7 @@ dxspotter_enabled = True
 Automate messages and tasks using the scheduler module.
 
 Configure in `[scheduler]` section of `config.ini`.  
-See modules/custom_scheduler.py for advanced scheduling using python
+See modules/custom_scheduler.py (installed from etc/custom_scheduler.template) for advanced scheduling using python
 
 **Purpose:**  
 `scheduler.py` provides automated scheduling for Mesh Bot, allowing you to send messages, jokes, weather updates, news, RSS feeds, marine weather, system info, tide info, sun info, and custom actions at specific times or intervals.
@@ -613,7 +460,7 @@ See modules/custom_scheduler.py for advanced scheduling using python
 **How to Use:**  
 - The scheduler is configured via your bot’s settings or commands, specifying what to send, when, and on which channel/interface.
 - Supports daily, weekly, hourly, and minutely schedules, as well as special jobs like jokes, weather, news, RSS feeds, marine weather, system info, tide info, and sun info.
-- For advanced automation, you can define your own schedules in `etc/custom_scheduler.py` (copied to `modules/custom_scheduler.py` at install).
+- For advanced automation, you can define your own schedules starting from `etc/custom_scheduler.template` (copied to `modules/custom_scheduler.py` at install).
 
 **Features:**  
 - **Basic Scheduling:** Send messages on a set schedule (e.g., every day at 09:00, every Monday at noon, every hour, etc.).
@@ -635,7 +482,7 @@ To send a daily message at 09:00:
 - `schedulerMessage = 'Good morning, mesh!'`
 
 **Custom Schedules:**  
-1. Edit `etc/custom_scheduler.py` to define your custom jobs.
+1. Edit `etc/custom_scheduler.template` to define your custom jobs.
 2. On install, this file is copied to `modules/custom_scheduler.py`.
 3. Set `schedulerValue = 'custom'` to activate your custom schedules.
 
@@ -678,11 +525,11 @@ You can schedule messages or actions using the following options in your configu
   - → Sends a joke every 60 minutes.
 
 #### **link**
-- Schedules the bot to send a satellite link message at the specified interval (in hours).
+- Schedules the bot to broadcast a static "looking for peers" announcement at the specified interval (in hours).
 - **Example:**  
   - Option: `link`  
   - Interval: `2`  
-  - → Sends a bbslink message every 2 hours.
+  - → Sends the peer announcement every 2 hours.
 
 #### **weather**
 - Schedules the bot to send a weather update at the specified time of day, daily.
@@ -835,7 +682,7 @@ The `echo` command returns your message back to you.
 ## Troubleshooting
 
 - Use the `logger` module for debug output.
-- See [modules/README.md](adding_more.md) for developer help.
+- See [modules/adding_more.md](adding_more.md) for developer help.
 - Use `etc/simulator.py` for local testing.
 - Check the logs in the `logs/` directory for errors.
 
@@ -864,11 +711,10 @@ This will log detailed system messages to disk, which you can review in the `log
   lon = -123.0
   ```
 - **BBS Not Responding:**  
-  Check that BBS is enabled and you are not on the ban list:
+  Check that BBS is enabled and you are not banned (admins can check with `banlist`):
   ```ini
   [bbs]
   enabled = True
-  bbs_ban_list =
   ```
 - **Scheduler Not Running:**  
   Confirm the scheduler is enabled and properly configured:
@@ -1018,7 +864,7 @@ lon = -123.0
 # To fuzz the location of the above
 fuzzConfigLocation = True
 # Fuzz all values in all data
-fuzzItAll = False
+fuzzAllLocations = False
 
 UseMeteoWxAPI = True
 
@@ -1046,7 +892,7 @@ The history command shows the last commands the user ran, and [`lheard`] reflect
 
 ```ini
 enableCmdHistory = True # history command enabler
-lheardCmdIgnoreNodes = # command history ignore list ex: 2813308004,4258675309
+lheardCmdIgnoreNode = # command history ignore list ex: 2813308004,4258675309
 ```
 
 ### Sentry Settings
@@ -1056,8 +902,8 @@ Sentry Bot detects anyone coming close to the bot-node. uses the Location Lat/Lo
 ```ini
 SentryEnabled = True # detect anyone close to the bot
 SentryRadius = 100 # radius in meters to detect someone close to the bot
-SentryChannel = 9 # holdoff time multiplied by seconds(20) of the watchdog
-SentryHoldoff = 2 # channel to send a message to when the watchdog is triggered
+SentryChannel = 2 # channel to send a message to when the watchdog is triggered
+SentryHoldoff = 9 # holdoff time multiplied by seconds(20) of the watchdog
 sentryIgnoreList = # list of ignored nodes numbers ex: 2813308004,4258675309
 highFlyingAlert = True # HighFlying Node alert
 highFlyingAlertAltitude = 2000 # Altitude in meters to trigger the alert
@@ -1100,9 +946,10 @@ myRegionalKeysDE = 110000000000,120510000000
 ```ini
 
 wxAlertBroadcastEnabled = True # EAS Alert Broadcast 
-wxAlertBroadcastCh = 2,4 # EAS Alert Broadcast Channels
 ignoreEASenable = True # Ignore any headline that includes followig word list
 ignoreEASwords = test,advisory
+# additional broadcast channels for fema/wx/volcano/de alerts (primary channel is [emergencyHandler] alert_channel)
+eAlertBroadcastCh = 2,4
 ```
 
 #### USGS River flow data and Volcano alerts
@@ -1116,7 +963,7 @@ riverList = 14144700 # example Mouth of Columbia River
 
 # USGS Volcano alerts Enable USGS Volcano Alert Broadcast
 volcanoAlertBroadcastEnabled = False
-volcanoAlertBroadcastCh = 2
+# volcano alerts broadcast to [emergencyHandler] alert_channel (and eAlertBroadcastCh if set above)
 ```
 
 ### Repeater Settings
@@ -1125,7 +972,7 @@ A repeater function for two different nodes and cross-posting messages. The `rep
 ```ini
 [repeater] # repeater module
 enabled = True
-repeater_channels = [2, 3]
+repeater_channels = 2,3
 ```
 
 ### Wikipedia Search Settings
@@ -1154,45 +1001,6 @@ To set up a local Kiwix server:
 4. Set `useKiwixServer = True` in your config.ini with `wikipedia = True`
 
 The bot will automatically extract and truncate content to fit Meshtastic's message size limits (~500 characters).
-
-### Radio Monitoring
-A module allowing a Hamlib compatible radio to connect to the bot. When functioning, it will message the configured channel with a message of in use. **Requires hamlib/rigctld to be running as a service.**
-
-Additionally, the module supports monitoring WSJT-X and JS8Call for amateur radio digital modes.
-
-```ini
-[radioMon]
-# Hamlib monitoring
-enabled = True
-rigControlServerAddress = localhost:4532
-sigWatchBroadcastCh = 2 # channel to broadcast to can be 2,3
-signalDetectionThreshold = -10 # minimum SNR as reported by radio via hamlib
-signalHoldTime = 10 # hold time for high SNR
-signalCooldown = 5 # the following are combined to reset the monitor
-signalCycleLimit = 5
-
-# WSJT-X monitoring (FT8, FT4, WSPR, etc.)
-# Monitors WSJT-X UDP broadcasts and forwards decode messages to mesh
-wsjtxDetectionEnabled = False
-wsjtxUdpServerAddress = 127.0.0.1:2237 # UDP address and port where WSJT-X broadcasts
-wsjtxWatchedCallsigns =  # Comma-separated list of callsigns to watch (empty = all)
-
-# JS8Call monitoring
-# Connects to JS8Call TCP API and forwards messages to mesh
-js8callDetectionEnabled = False
-js8callServerAddress = 127.0.0.1:2442 # TCP address and port where JS8Call API listens
-js8callWatchedCallsigns =  # Comma-separated list of callsigns to watch (empty = all)
-
-# Broadcast settings (shared by Hamlib, WSJT-X, and JS8Call)
-sigWatchBroadcastInterface = 1
-```
-
-**Setup Notes:**
-- **WSJT-X**: Enable UDP Server in WSJT-X settings (File → Settings → Reporting → Enable UDP Server)
-- **JS8Call**: Enable TCP Server in JS8Call settings (File → Settings → Reporting → Enable TCP Server API)
-- Both services can run simultaneously
-- Leave callsign filters empty to monitor all activity
-- Callsigns are case-insensitive and comma-separated (e.g., `K7MHI,W1AW`)
 
 ### File Monitoring
 Some dev notes for ideas of use
@@ -1241,12 +1049,12 @@ Maintain multiple news sources. Each source should be a file named `{source}_new
 This allows you to organize and access different news feeds or categories easily.  
 External scripts can update these files as needed, and the bot will serve the latest content on request.
 
-### Greet new nodes QRZ module
-This isnt QRZ.com this is Q code for who is calling me, this will track new nodes and say hello
+### Greet new nodes (greeter module)
+Tracks new nodes and sends them a one-time hello/welcome message.
 ```ini
-[qrz] 
-enabled = True # QRZ Hello to new nodes
-qrz_hello_string = "send CMD or DM me for more info." # will be sent to all heard nodes once
+[greeter]
+enabled = True # Say hello to new nodes
+greeter_hello_string = "send CMD or DM me for more info." # will be sent to all heard nodes once
 training = True # Training mode will not send the hello message to new nodes, use this to build up database
 ```
 Happy meshing!
