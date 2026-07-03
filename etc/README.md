@@ -3,29 +3,26 @@
 This folder contains supporting files and resources for the Mesh Bot project. Typical contents include:
 
 - **Images**: Visual assets used in documentation (e.g., `pong-bot.jpg`).
-- **Custom Scripts**: Example or utility scripts for advanced configuration (e.g., `custom_scheduler.py` for scheduled tasks).
+- **Custom Scripts**: Example or utility scripts for advanced configuration (e.g., `custom_scheduler.template` for scheduled tasks).
 - **tmp**: Temp files for install
 
 ## db_admin.py
 
-**Purpose:**  
-`db_admin.py` is a simple administrative tool for viewing the contents of the Mesh Bot’s data and high score databases. It loads and prints out messages, direct messages, email/SMS records, and game high score tables stored in the `/data` directory.
-
-**Usage:**  
-Run this script from the command line to display the current contents of the bot’s databases. This is useful for debugging, verifying data integrity, or reviewing stored messages and game scores.
+**Status: stale, does not match this fork's current data model.**  
+`db_admin.py` predates this fork's move to a SQLite-backed BBS (`data/bbs.db`, see `modules/bbs/`)
+and the removal of email/SMS, checklist/inventory, and all games except `joke.py`. It still tries
+to load pickle files (`bbsdb.pkl`, `bbsdm.pkl`, `email_db.pickle`, `sms_db.pickle`) and game
+high-score files (Lemonade Stand, DopeWars, BlackJack, Video Poker, Mastermind, GolfSim) that this
+project no longer creates, plus `checklist.db`/`inventory.db` tables that no longer exist. Running
+it against a current `data/` directory will just print "not found" for everything it looks for.
 
 ```sh
 python etc/db_admin.py
 ```
 
-**What it does:**  
-- Attempts to load various `.pkl` and `.pickle` files from the `data` directory.
-- Prints out the contents of BBS messages, direct messages, email and SMS databases.
-- Displays high scores for supported games (Lemonade Stand, DopeWars, BlackJack, Video Poker, Mastermind, GolfSim).
-- If a file is missing, it will print a message indicating so.
-
 **Note:**  
-This tool is for administrative and debugging purposes only. It does not modify any data.
+Left as-is for now — not wired into anything else, so it's harmless to run, it just won't show
+you anything useful. To actually inspect current data, query `data/bbs.db` directly with `sqlite3`.
 
 ## eas_alert_parser.py
 

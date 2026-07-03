@@ -8,7 +8,7 @@ Only `joke.py` remains.
 
 ## joke
 
-Tells a random dad joke via the [icanhazdadjoke.com](https://icanhazdadjoke.com/) API.
+Tells a random dad joke using the [`dadjokes`](https://pypi.org/project/dadjokes/) Python package (no network call).
 
 | Command | Description        |
 |---------|--------------------|

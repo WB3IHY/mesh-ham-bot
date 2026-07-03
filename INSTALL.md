@@ -3,7 +3,6 @@
 ## Table of Contents
 
 - [Manual Install](#manual-install)
-- [Docker Installation](#docker-installation)
 - [Requirements](#requirements)
 - [install.sh](#installsh)
   - [Purpose](#purpose)
@@ -41,16 +40,9 @@ cp config.template config.ini
 
 ---
 
-## Docker Installation
-
-See [script/docker/README.md](script/docker/README.md) for Docker-based setup instructions.  
-Docker is recommended for Windows or if you want an isolated environment.
-
----
-
 ## Requirements
 
-- **Python 3.8 or later** (Python 3.13+ supported in Docker)
+- **Python 3.8 or later**
 - All dependencies are listed in `requirements.txt` and can be installed with:
   ```sh
   pip install -r requirements.txt
