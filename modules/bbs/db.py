@@ -18,7 +18,7 @@ thread_local = threading.local()
 
 
 def normalize_node_id(node_id):
-    """Normalize any node ID form to !hex string (e.g. 1235296192 → '!49b7a3c0').
+    """Normalize any node ID form to !hex string (e.g. 2712847316 → '!a1b2c3d4').
     Accepts: None, int, decimal string, hex string with or without 0x/! prefix.
     Returns a lowercase !hex string, or None if node_id is None.
     Non-parseable values (e.g. 'config') are returned as-is.
@@ -35,7 +35,7 @@ def normalize_node_id(node_id):
             return f'!{int(s, 16):08x}'
         except ValueError:
             pass
-    # Bare hex string (e.g. "49b7a3c0") — contains hex chars but is not purely decimal
+    # Bare hex string (e.g. "a1b2c3d4") — contains hex chars but is not purely decimal
     if all(c in '0123456789abcdefABCDEF' for c in s) and not s.isdigit():
         return f'!{s.lower()}'
     try:

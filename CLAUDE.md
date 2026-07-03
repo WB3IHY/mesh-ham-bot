@@ -20,7 +20,7 @@ Runs on the Ionos VPS as systemd service `mesh-ham-bot`.
 ## Database
 - The BBS database is at `data/bbs.db`
 - Never modify the schema without a migration plan
-- Node IDs are always stored in `!hex` format (e.g. `!49b7a3c0`) in the database
+- Node IDs are always stored in `!hex` format (e.g. `!a1b2c3d4`) in the database
 
 ## Key Paths (VPS)
 - Project root: /root/mesh-ham-bot/
@@ -45,11 +45,11 @@ Missing any one of these causes silent failures or "unknown command" errors.
 This has burned us before — do not skip any of these four steps.
 
 ## Node ID Format
-- ALL node IDs stored in database use !hex format: e.g. !49b7a3c0
+- ALL node IDs stored in database use !hex format: e.g. !a1b2c3d4
 - normalize_node_id() in db.py converts any format (raw int, decimal string,
   bare hex, !hex) to canonical !hex
 - Call normalize_node_id() on any node ID before DB storage or query
-- Admins table stores bare hex WITHOUT ! prefix: e.g. 49b7a3c0
+- Admins table stores bare hex WITHOUT ! prefix: e.g. a1b2c3d4
 - NEVER assume format — always normalize
 
 ## BBS Database Schema
