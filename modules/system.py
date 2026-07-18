@@ -80,7 +80,7 @@ if enableCmdHistory:
 if location_enabled:
     from modules.locationdata import * # from the spudgunman/meshing-around repo
     trap_list = trap_list + trap_list_location
-    help_message = help_message + ", whereami, wx, howfar, grid"
+    help_message = help_message + ", whereami, wx, wxfind, wxcall, howfar, grid"
     if enableGBalerts and not enableDEalerts:
         from modules.globalalert import * # from the spudgunman/meshing-around repo
         logger.warning(f"System: GB Alerts not functional at this time need to find a source API")
@@ -563,11 +563,13 @@ def get_all_nodes(nodeInt=1):
     nodes.sort(key=lambda x: x[4] if x[4] is not None else 0, reverse=True)
     return nodes
 
-def get_node_location(nodeID, nodeInt=1, channel=0, round_digits=2):
+def get_node_location(nodeID, nodeInt=1, channel=0, round_digits=2, require_known=False):
     """
     Returns [latitude, longitude] for a node.
     - Always returns a fuzzed (rounded) config location as fallback.
     - returns their actual position if available, else fuzzed config location.
+    - if require_known=True, returns None instead of falling back to the
+      config location when the node has no real position on file.
     """
     interface = globals()[f'interface{nodeInt}']
 
@@ -596,6 +598,9 @@ def get_node_location(nodeID, nodeInt=1, channel=0, round_digits=2):
                         return [latitude, longitude]
                     except Exception as e:
                         logger.warning(f"System: Error processing position for node {nodeID}: {e}")
+
+    if require_known:
+        return None
 
     if fuzz_config_location:
         # Return fuzzed config location if no valid position found

@@ -14,9 +14,11 @@ import modules.settings as my_settings
 import math
 import csv
 import os
+import re
 import sqlite3
+from urllib.parse import quote
 
-trap_list_location = ("whereami", "wx", "wxa", "wxalert", "rlist", "ea", "ealert", "riverflow", "valert", "earthquake", "howfar", "map", "grid", "locator",)
+trap_list_location = ("whereami", "wx", "wxa", "wxalert", "wxfind", "wxcall", "rlist", "ea", "ealert", "riverflow", "valert", "earthquake", "howfar", "map", "grid", "locator",)
 
 def get_grid_square(lat=0, lon=0):
     # Maidenhead grid locator for the node's last known position
@@ -83,7 +85,66 @@ def where_am_i(lat=0, lon=0, short=False, zip=False):
     except Exception as e:
         logger.debug("Location:Error fetching location data with whereami, likely network error")
         return my_settings.ERROR_FETCHING_DATA
-    
+
+def geocode_location(query):
+    """
+    Forward-geocode a free-text city/state or 5-digit US zip to (lat, lon) via Nominatim.
+    - A bare 5-digit query is geocoded with a structured postalcode query — Nominatim's
+      free-text search will otherwise fuzzy-match a bogus zip (e.g. "00000") to an
+      unrelated street address instead of failing.
+    - Non-US matches are excluded (country_codes='us'); this bot serves a US ham mesh,
+      and a bare zip searched worldwide is ambiguous (e.g. "90210" alone resolves to
+      a place in Ukraine, not Beverly Hills).
+    Returns (lat, lon) on success, None if no match was found, or
+    my_settings.ERROR_FETCHING_DATA on a lookup/network failure.
+    """
+    geolocator = Nominatim(user_agent="mesh-bot")
+    query = query.strip()
+    try:
+        if re.fullmatch(r"\d{5}", query):
+            location = geolocator.geocode({'postalcode': query, 'country': 'US'}, timeout=my_settings.urlTimeoutSeconds)
+        else:
+            location = geolocator.geocode(query, timeout=my_settings.urlTimeoutSeconds, country_codes='us')
+        if location is None:
+            return None
+        return location.latitude, location.longitude
+    except Exception as e:
+        logger.debug(f"Location:Error geocoding '{query}', likely network error: {e}")
+        return my_settings.ERROR_FETCHING_DATA
+
+def get_callsign_location(callsign):
+    """
+    Look up a US amateur radio callsign via callook.info (an FCC ULS wrapper) and
+    return (lat, lon, city_state) for the address of record.
+    US callsigns only — callook.info is backed by the FCC database.
+    Returns None if the callsign is malformed or not found in the FCC database,
+    or my_settings.ERROR_FETCHING_DATA on a lookup/network failure.
+    """
+    callsign = callsign.strip().upper()
+    if not re.fullmatch(r"[A-Z0-9]{3,8}(/[A-Z0-9]{1,4})?", callsign):
+        return None
+    safe_callsign = quote(callsign, safe='/')
+    url = f"https://callook.info/{safe_callsign}/json"
+    try:
+        response = requests.get(url, timeout=my_settings.urlTimeoutSeconds)
+        if response.status_code != 200:
+            logger.debug(f"Location:Error fetching callsign data from {url} with status code {response.status_code}")
+            return my_settings.ERROR_FETCHING_DATA
+        data = response.json()
+    except Exception as e:
+        logger.debug(f"Location:Error looking up callsign '{callsign}', likely network error: {e}")
+        return my_settings.ERROR_FETCHING_DATA
+
+    if data.get('status') != 'VALID':
+        return None
+    loc = data.get('location', {})
+    lat = loc.get('latitude')
+    lon = loc.get('longitude')
+    if lat is None or lon is None:
+        return None
+    city_state = data.get('address', {}).get('line2', '')
+    return float(lat), float(lon), city_state
+
 def getRepeaterBook(lat=0, lon=0):
     grid = mh.to_maiden(float(lat), float(lon))
     data = []

@@ -160,6 +160,8 @@ Enable in `[bbs]` section of `config.ini`.
 | `wxc`        | Weather in metric/imperial units                        |
 | `wxa`        | NOAA weather alerts (summary)                           |
 | `wxalert`    | NOAA weather alerts (detailed/expanded)                 |
+| `wxfind`     | Weather for a city/state/zip lookup, e.g. `wxfind 90210` |
+| `wxcall`     | Weather for a callsign's FCC address of record           |
 | `mwx`        | NOAA Coastal Marine Forecast                            |
 | `tide`       | NOAA tide information                                   |
 | `riverflow`  | NOAA river flow information                             |
@@ -167,6 +169,10 @@ Enable in `[bbs]` section of `config.ini`.
 | `valert`     | USGS volcano alerts                                     |
 | `rlist`      | Nearby repeaters from RepeaterBook                      |
 | `satpass`    | Satellite pass information                              |
+
+`wx`/`wxa`/`wxalert` need a known node position; if the requesting node has no
+GPS position on file, they return a message pointing to `wxfind`/`wxcall`
+instead of silently falling back to the bot's own configured location.
 | `howfar`     | Distance traveled since last check                      |
 | `howtall`    | Calculate height using sun angle                        |
 | `whereami`   | Show current location/address                           |

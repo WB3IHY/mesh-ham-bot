@@ -47,7 +47,7 @@ restrictedResponse = "🤖only available in a Direct Message📵" # "" for none
 
 # commands that "share <cmd>" is allowed to re-broadcast into the issuing channel
 # whitelist by design: BBS/admin/mail commands and anything not listed here stay DM/normal-routed only
-shareableCommands = {"wx", "wxa", "wxalert", "wxc", "sun", "moon", "tide", "mwx",
+shareableCommands = {"wx", "wxa", "wxalert", "wxc", "wxfind", "wxcall", "sun", "moon", "tide", "mwx",
                       "solar", "hfcond", "satpass", "valert", "riverflow", "dx", "joke", "verse"}
 
 def auto_response(message, snr, rssi, hop, pkiStatus, message_from_id, channel_number, deviceID, isDM):
@@ -139,6 +139,8 @@ def auto_response(message, snr, rssi, hop, pkiStatus, message_from_id, channel_n
     "wxalert": lambda: handle_wxalert(message_from_id, deviceID, message),
     "x:": lambda: handleShellCmd(message, message_from_id, channel_number, isDM, deviceID),
     "wxc": lambda: handle_wxc(message_from_id, deviceID, 'wxc'),
+    "wxfind": lambda: handle_wxfind(message_from_id, deviceID, message),
+    "wxcall": lambda: handle_wxcall(message_from_id, deviceID, message),
     "📍": lambda: handle_whoami(message_from_id, deviceID, hop, snr, rssi, pkiStatus),
     "🔔": lambda: handle_alertBell(message_from_id, deviceID, message),
     "🐝": lambda: read_file("bee.txt", True),
@@ -461,28 +463,66 @@ def handle_wxalert(message_from_id, deviceID, message):
     if my_settings.use_meteo_wxApi:
         return "wxalert is not supported"
     else:
-        location = get_node_location(message_from_id, deviceID)
+        location = get_node_location(message_from_id, deviceID, require_known=True)
+        if location is None:
+            return my_settings.NO_LOCATION_ON_FILE
         if "wxalert" in message:
             # Detailed weather alert
             weatherAlert = getActiveWeatherAlertsDetailNOAA(str(location[0]), str(location[1]))
         else:
             weatherAlert = getWeatherAlertsNOAA(str(location[0]), str(location[1]))
-        
+
         if my_settings.NO_ALERTS not in weatherAlert:
             weatherAlert = weatherAlert[0]
         return weatherAlert
 
+def _get_weather_for_location(lat, lon, cmd, days=None):
+    # Shared NOAA/Open-Meteo source selection, used by handle_wxc, handle_wxfind, handle_wxcall
+    if my_settings.use_meteo_wxApi and not "wxc" in cmd and not use_metric:
+        return get_wx_meteo(str(lat), str(lon))
+    elif my_settings.use_meteo_wxApi:
+        return get_wx_meteo(str(lat), str(lon), 1)
+    elif not my_settings.use_meteo_wxApi and "wxc" in cmd or my_settings.use_metric:
+        return get_NOAAweather(str(lat), str(lon), 1, report_days=days)
+    else:
+        return get_NOAAweather(str(lat), str(lon), report_days=days)
+
 def handle_wxc(message_from_id, deviceID, cmd, days=None, vox=False):
     # Weather from NOAA or Open-Meteo
-    location = get_node_location(message_from_id, deviceID)
-    if my_settings.use_meteo_wxApi and not "wxc" in cmd and not use_metric:
-        weather = get_wx_meteo(str(location[0]), str(location[1]))
-    elif my_settings.use_meteo_wxApi:
-        weather = get_wx_meteo(str(location[0]), str(location[1]), 1)
-    elif not my_settings.use_meteo_wxApi and "wxc" in cmd or my_settings.use_metric:
-        weather = get_NOAAweather(str(location[0]), str(location[1]), 1, report_days=days)
-    else:
-        weather = get_NOAAweather(str(location[0]), str(location[1]), report_days=days)
+    location = get_node_location(message_from_id, deviceID, require_known=True)
+    if location is None:
+        return my_settings.NO_LOCATION_ON_FILE
+    return _get_weather_for_location(location[0], location[1], cmd, days)
+
+def handle_wxfind(message_from_id, deviceID, message, cmd='wx'):
+    # Weather for a city/state/zip lookup, for nodes with no location on file
+    parts = message.strip().split(None, 1)
+    if len(parts) < 2 or not parts[1].strip() or "?" in message:
+        return "Usage: wxfind <city, state or zip code>, e.g. wxfind 90210"
+    query = parts[1].strip()
+    coords = geocode_location(query)
+    if coords == my_settings.ERROR_FETCHING_DATA:
+        return my_settings.ERROR_FETCHING_DATA
+    if coords is None:
+        return f"Could not find '{query}'. Try a zip code or 'City, State'."
+    lat, lon = coords
+    return _get_weather_for_location(lat, lon, cmd)
+
+def handle_wxcall(message_from_id, deviceID, message, cmd='wx'):
+    # Weather for a US amateur radio callsign's address of record (via callook.info/FCC ULS)
+    parts = message.strip().split(None, 1)
+    if len(parts) < 2 or not parts[1].strip() or "?" in message:
+        return "Usage: wxcall <callsign>, e.g. wxcall W1AW"
+    callsign = parts[1].strip()
+    result = get_callsign_location(callsign)
+    if result == my_settings.ERROR_FETCHING_DATA:
+        return my_settings.ERROR_FETCHING_DATA
+    if result is None:
+        return f"Callsign '{callsign.upper()}' not found in the FCC database."
+    lat, lon, city_state = result
+    weather = _get_weather_for_location(lat, lon, cmd)
+    if city_state:
+        return f"{callsign.upper()} QTH: {city_state}\n{weather}"
     return weather
 
 def handleNews(message_from_id, deviceID, message, isDM):
