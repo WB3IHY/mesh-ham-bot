@@ -117,6 +117,10 @@ def get_callsign_location(callsign):
     Look up a US amateur radio callsign via callook.info (an FCC ULS wrapper) and
     return (lat, lon, city_state) for the address of record.
     US callsigns only — callook.info is backed by the FCC database.
+    If callook.info has a valid record but couldn't geocode the address itself
+    (happens for some records), falls back to geocoding the city/state from that
+    same address via Nominatim, so a legitimately licensed callsign isn't reported
+    as "not found" just because callook's own geocoding step came up empty.
     Returns None if the callsign is malformed or not found in the FCC database,
     or my_settings.ERROR_FETCHING_DATA on a lookup/network failure.
     """
@@ -140,16 +144,31 @@ def get_callsign_location(callsign):
     loc = data.get('location', {})
     lat = loc.get('latitude')
     lon = loc.get('longitude')
-    if not lat or not lon:
-        # callook.info can return status VALID with empty lat/lon strings
-        # when it couldn't geocode the address on file
-        return None
     city_state = data.get('address', {}).get('line2', '')
+
+    if not lat or not lon:
+        # callook.info can return status VALID with empty lat/lon strings when it
+        # couldn't geocode the address on file. The FCC address text is still there
+        # though, so fall back to geocoding the city/state ourselves rather than
+        # treating a legitimate, licensed callsign as "not found".
+        if not city_state:
+            return None
+        return _geocode_callsign_fallback(city_state)
+
     try:
         return float(lat), float(lon), city_state
     except (TypeError, ValueError):
         logger.debug(f"Location:Error parsing callsign coordinates for '{callsign}': lat={lat!r} lon={lon!r}")
-        return None
+        if not city_state:
+            return None
+        return _geocode_callsign_fallback(city_state)
+
+def _geocode_callsign_fallback(city_state):
+    coords = geocode_location(city_state)
+    if coords is None or coords == my_settings.ERROR_FETCHING_DATA:
+        return coords
+    lat, lon = coords
+    return lat, lon, city_state
 
 def getRepeaterBook(lat=0, lon=0):
     grid = mh.to_maiden(float(lat), float(lon))
