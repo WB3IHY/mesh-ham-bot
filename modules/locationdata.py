@@ -140,10 +140,16 @@ def get_callsign_location(callsign):
     loc = data.get('location', {})
     lat = loc.get('latitude')
     lon = loc.get('longitude')
-    if lat is None or lon is None:
+    if not lat or not lon:
+        # callook.info can return status VALID with empty lat/lon strings
+        # when it couldn't geocode the address on file
         return None
     city_state = data.get('address', {}).get('line2', '')
-    return float(lat), float(lon), city_state
+    try:
+        return float(lat), float(lon), city_state
+    except (TypeError, ValueError):
+        logger.debug(f"Location:Error parsing callsign coordinates for '{callsign}': lat={lat!r} lon={lon!r}")
+        return None
 
 def getRepeaterBook(lat=0, lon=0):
     grid = mh.to_maiden(float(lat), float(lon))
