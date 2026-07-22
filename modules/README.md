@@ -9,6 +9,7 @@ This document provides an overview of all modules available in the Mesh-Bot proj
 - [Networking](#networking)
 - [BBS (Bulletin Board System)](#bbs-bulletin-board-system)
 - [Location & Weather](#location--weather)
+- [Node Memory (nodes.db)](#node-memory-nodesdb)
 - [EAS & Emergency Alerts](#eas--emergency-alerts)
 - [File Monitoring & News](#file-monitoring--news)
 - [Wikipedia Search](#wikipedia-search)
@@ -162,6 +163,7 @@ Enable in `[bbs]` section of `config.ini`.
 | `wxalert`    | NOAA weather alerts (detailed/expanded)                 |
 | `wxfind`     | Weather for a city/state/zip lookup, e.g. `wxfind 90210` |
 | `wxcall`     | Weather for a callsign's FCC address of record           |
+| `setnodecallsign` | Self-service: set your node's callsign as a location fallback for when you have no GPS fix, e.g. `setnodecallsign W1AW` |
 | `mwx`        | NOAA Coastal Marine Forecast                            |
 | `tide`       | NOAA tide information                                   |
 | `riverflow`  | NOAA river flow information                             |
@@ -170,9 +172,13 @@ Enable in `[bbs]` section of `config.ini`.
 | `rlist`      | Nearby repeaters from RepeaterBook                      |
 | `satpass`    | Satellite pass information                              |
 
-`wx`/`wxa`/`wxalert` need a known node position; if the requesting node has no
-GPS position on file, they return a message pointing to `wxfind`/`wxcall`
-instead of silently falling back to the bot's own configured location.
+`wx`/`wxa`/`wxalert` and most other "where am I" commands (`whereami`, `grid`,
+`tide`, `riverflow`, etc.) resolve location via a fallback chain: fresh GPS →
+an active saved location (`map active <name>`) → a callsign-derived QTH
+(explicit `setnodecallsign` override, or auto-extracted from the node's long
+name) → if none resolve, a message pointing to `wxfind`/`wxcall` instead of
+silently falling back to the bot's own configured location. The first time a
+non-GPS source is used, a one-time disclosure line is shown.
 | `howfar`     | Distance traveled since last check                      |
 | `howtall`    | Calculate height using sun angle                        |
 | `whereami`   | Show current location/address                           |
@@ -275,6 +281,19 @@ The `map` command provides a comprehensive location management system that allow
     - Only administrators can delete public locations
   
   The system prioritizes deleting your private location if both private and public locations exist with the same name.
+
+- **Set Active Location (GPS fallback)**
+  ```
+  map active <name>
+  ```
+  Marks one of your saved locations as the fallback used by location-based
+  commands (`wx`, `whereami`, etc.) whenever your node has no GPS fix — useful
+  for a seasonal or temporary QTH (summer home, winter cabin, deployment site).
+
+  Example:
+  ```
+  map active BaseCamp
+  ```
 
 - **Legacy CSV Logging**
   ```
@@ -1056,11 +1075,48 @@ This allows you to organize and access different news feeds or categories easily
 External scripts can update these files as needed, and the bot will serve the latest content on request.
 
 ### Greet new nodes (greeter module)
-Tracks new nodes and sends them a one-time hello/welcome message.
+Tracks new nodes and sends them a one-time hello/welcome message. Greeted
+status is stored in `data/nodes.db` (the `greeted` column — see [Node Memory
+(nodes.db)](#node-memory-nodesdb) below), not a separate greeter database.
 ```ini
 [greeter]
 enabled = True # Say hello to new nodes
 greeter_hello_string = "send CMD or DM me for more info." # will be sent to all heard nodes once
 training = True # Training mode will not send the hello message to new nodes, use this to build up database
 ```
+
+---
+
+## Node Memory (nodes.db)
+
+`data/nodes.db` is persistent per-node memory the bot keeps beyond what the
+Meshtastic device's own NodeDB provides: a callsign (self-service or
+admin-set), an "active" saved location to use when a node has no GPS fix,
+public-key change history, and one-time-greeted status. It's pre-seeded from
+connected nodes on boot and kept fresh during normal operation.
+
+### Self-Service Commands
+
+| Command | Description |
+|---------|-------------|
+| `setnodecallsign <callsign>` | Set your callsign as your location fallback source (validated against FCC data) |
+| `map active <name>` | Use a saved location (see [Map Command](#-map-command)) as your fallback when you have no GPS fix |
+
+### Admin Commands
+
+| Command | Description |
+|---------|-------------|
+| `adminhelp` | Full admin command reference with argument syntax |
+| `ackkey <nodeid>` | Clear a flagged public-key change after review (does not restore trust/admin status) |
+| `admincallsign <nodeid> <callsign>` | Set/override another node's callsign on their behalf |
+| `adminlocation <nodeid> <lat>,<lon> [description]` | Set and activate a location for another node in one step |
+
+### Public Key Change Detection
+
+If a node's public key changes (e.g. the device was wiped/reflashed), the bot
+detects the mismatch against its stored history, flags the node in
+`nodes.db`, sends an in-channel notice (since DM may no longer reach a node
+with a stale cached key), and DMs every configured admin. An admin reviews
+and clears the flag with `ackkey <nodeid>` once satisfied it's legitimate.
+
 Happy meshing!

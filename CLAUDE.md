@@ -25,6 +25,7 @@ Runs on the Ionos VPS as systemd service `mesh-ham-bot`.
 ## Key Paths (VPS)
 - Project root: /root/mesh-ham-bot/
 - BBS database: /root/mesh-ham-bot/data/bbs.db
+- Node memory database: /root/mesh-ham-bot/data/nodes.db
 - Config: /root/mesh-ham-bot/config.ini (gitignored)
 - Watchdog: /usr/local/bin/check-mesh-ham-bot.sh (cron every 5 min)
 - Node cache: /root/mesh-nodes-cache.txt (cron every 10 min)
@@ -60,6 +61,43 @@ Tables: bulletins, mail, admins, banned, channels
 - banned: id, node_id, banned_by, date, reason
 - channels: id, name, url
 
+## Node Memory Database (nodes.db)
+`modules/nodes_db.py` — persistent per-node enrichment that meshtasticd's own
+NodeDB doesn't track: callsign, active/seasonal location, public-key history,
+greeted status. Pre-seeded from `interface1.nodes` on boot; `long_name`/
+`short_name` kept fresh during ongoing operation via `sync_node_metadata()` in
+modules/system.py (hooked into `consumeMetadata()`).
+
+Tables: nodes, pubkey_history
+- nodes: node_id (!hex PK), long_name, short_name, public_key, pubkey_flagged,
+  callsign, callsign_source ('override'|'auto_extracted'|NULL),
+  active_location_name, location_fallback_disclosed, greeted, first_seen,
+  last_seen, notes
+- pubkey_history: id, node_id, public_key, changed_date
+
+Location resolution for "where is this node" commands (`wx`, `whereami`,
+`grid`, etc.) goes through `resolve_location_with_disclosure()` in
+modules/locationdata.py: fresh GPS → active saved location (`map active
+<name>`) → callsign-derived QTH (explicit `setnodecallsign` override, or
+auto-extracted from long_name) → `NO_GPS_OR_CALLSIGN` message. The fallback
+disclosure line is shown once per node, then suppressed.
+
+### Node Memory / Admin Commands
+- `setnodecallsign <callsign>` — self-service callsign override, used as a
+  location fallback when a node has no GPS fix (validated against FCC data,
+  same lookup as `wxcall`)
+- `map active <name>` — self-service: use a saved location as the fallback
+  when this node has no GPS fix (seasonal/temporary QTH)
+- `adminhelp` — admin command reference with argument syntax; non-admins get
+  "Not authorized."
+- `ackkey <nodeid>` — admin: clear a flagged public-key change after review
+  (does not restore trust/admin status — that's a separate human decision)
+- `admincallsign <nodeid> <callsign>` — admin: set/override another node's
+  callsign on their behalf
+- `adminlocation <nodeid> <lat>,<lon> [description]` — admin: set and
+  activate a location for another node in one step (covers a node that can't
+  self-service, e.g. DM broken from a pubkey mismatch)
+
 ## Known Gotchas
 - messageTrap() in system.py is case-insensitive; dispatch table uses message_lower
   — no extra case handling needed
@@ -79,7 +117,9 @@ the old `[radioMon] dxspotter_enabled` to its own `[dxspotter] enabled` section.
 ## Naming Note
 The old `qrz` module (says hello to newly-seen nodes) was renamed to `greeter` —
 it was never a QRZ.com integration, just a Q-code name ("who is calling me?") that
-was easy to mistake for one. Config section is `[greeter]`, db is `data/greeter.db`.
+was easy to mistake for one. Config section is `[greeter]`. `modules/greeter.py`
+itself was later retired; greeted status now lives in `nodes.db`'s `greeted`
+column (see Node Memory Database above) — `data/greeter.db` is no longer used.
 
 ## Systemd Service
 Name: mesh-ham-bot
