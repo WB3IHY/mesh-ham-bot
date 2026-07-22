@@ -795,7 +795,7 @@ def sysinfo(message, message_from_id, deviceID, isDM):
                 # no data returned from the script
                 shellData = "shell script data missing"
             # if not an admin remove any line in the shellData that had 'IP:' in it
-            if (str(message_from_id) not in bbs_admin_list) or (not isDM):
+            if (not isNodeAdmin(message_from_id)) or (not isDM):
                 shell_lines = shellData.splitlines()
                 filtered_lines = [line for line in shell_lines if 'IP:' not in line]
                 shellData = "\n".join(filtered_lines)
@@ -859,9 +859,9 @@ def handle_history(message, nodeid, deviceID, isDM, lheard=False):
             prettyTime = getPrettyTime(cmdTime)
 
             # history display output
-            if str(nodeid) in bbs_admin_list and cmdHistory[i]['nodeID'] not in lheardCmdIgnoreNode:
+            if isNodeAdmin(nodeid) and normalize_node_id(cmdHistory[i]['nodeID']) not in lheardCmdIgnoreNode:
                 buffer.append((get_name_from_number(cmdHistory[i]['nodeID'], 'short', deviceID), cmdHistory[i]['cmd'], prettyTime))
-            elif cmdHistory[i]['nodeID'] == nodeid and cmdHistory[i]['nodeID'] not in lheardCmdIgnoreNode:
+            elif cmdHistory[i]['nodeID'] == nodeid and normalize_node_id(cmdHistory[i]['nodeID']) not in lheardCmdIgnoreNode:
                 buffer.append((get_name_from_number(nodeid, 'short', deviceID), cmdHistory[i]['cmd'], prettyTime))
         # message for output of the last commands
         buffer.reverse()
@@ -879,7 +879,7 @@ def handle_history(message, nodeid, deviceID, isDM, lheard=False):
             cmdTime = round((time.time() - cmdHistory[i]['time']) / 600) * 5
             prettyTime = getPrettyTime(cmdTime)
 
-            if cmdHistory[i]['nodeID'] not in lheardCmdIgnoreNode:
+            if normalize_node_id(cmdHistory[i]['nodeID']) not in lheardCmdIgnoreNode:
                 # add line to a new list for display
                 nodeName = get_name_from_number(cmdHistory[i]['nodeID'], 'short', deviceID)
                 if not any(d[0] == nodeName for d in buffer):
@@ -1003,7 +1003,7 @@ def handle_whois(message, deviceID, channel_number, message_from_id):
             msg = "Provide a valid node number or short name"
         else:
             # if the user is an admin show the channel and interface and location
-            if str(message_from_id) in bbs_admin_list:
+            if isNodeAdmin(message_from_id):
                 location = get_node_location(seenNodes[i]['nodeID'], deviceID, channel_number)
                 msg += f"Ch: {seenNodes[i]['channel']}, Int: {seenNodes[i]['rxInterface']}"
                 msg += f"Lat: {location[0]}, Lon: {location[1]}\n"

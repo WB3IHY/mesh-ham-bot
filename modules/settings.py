@@ -1,6 +1,7 @@
 # Settings for MeshBot and PongBot
 # 2024 Kelly Keeton K7MHI
 import configparser
+from modules.bbs.db import normalize_node_id # pure string/int utility, no BBS-specific dependencies
 
 # messages
 NO_DATA_NOGPS = "No location data: does your device have GPS?"
@@ -239,7 +240,7 @@ try:
     MOTD = config['general'].get('motd', MOTD)
     autoPingInChannel = config['general'].getboolean('autoPingInChannel', False)
     enableCmdHistory = config['general'].getboolean('enableCmdHistory', True)
-    lheardCmdIgnoreNode = config['general'].get('lheardCmdIgnoreNode', '').split(',')
+    lheardCmdIgnoreNode = [normalize_node_id(n.strip()) for n in config['general'].get('lheardCmdIgnoreNode', '').split(',') if n.strip()]
     whoami_enabled = config['general'].getboolean('whoami', True)
     dad_jokes_enabled = config['general'].getboolean('DadJokes', False)
     dad_jokes_emojiJokes = config['general'].getboolean('DadJokesEmoji', False)
@@ -278,14 +279,14 @@ try:
     secure_channel = config['sentry'].getint('SentryChannel', 2) # default 2
     secure_interface = config['sentry'].getint('SentryInterface', 1) # default 1
     sentry_holdoff = config['sentry'].getint('SentryHoldoff', 9) # default 9
-    sentryIgnoreList = config['sentry'].get('sentryIgnoreList', '').split(',')
-    sentryWatchList = config['sentry'].get('sentryWatchList', '').split(',')
+    sentryIgnoreList = [normalize_node_id(n.strip()) for n in config['sentry'].get('sentryIgnoreList', '').split(',') if n.strip()]
+    sentryWatchList = [normalize_node_id(n.strip()) for n in config['sentry'].get('sentryWatchList', '').split(',') if n.strip()]
     sentry_radius = config['sentry'].getint('SentryRadius', 100) # default 100 meters
     highfly_enabled = config['sentry'].getboolean('highFlyingAlert', True) # default True
     highfly_altitude = config['sentry'].getint('highFlyingAlertAltitude', 2000) # default 2000 meters
     highfly_channel = config['sentry'].getint('highFlyingAlertChannel', 2) # default 2
     highfly_interface = config['sentry'].getint('highFlyingAlertInterface', 1) # default 1
-    highfly_ignoreList = config['sentry'].get('highFlyingIgnoreList', '').split(',') # default empty
+    highfly_ignoreList = [normalize_node_id(n.strip()) for n in config['sentry'].get('highFlyingIgnoreList', '').split(',') if n.strip()] # default empty
     highfly_check_openskynetwork = config['sentry'].getboolean('highflyOpenskynetwork', True) # default True check with OpenSkyNetwork if highfly detected
     detctionSensorAlert = config['sentry'].getboolean('detectionSensorAlert', False) # default False
     reqLocationEnabled = config['sentry'].getboolean('reqLocationEnabled', False) # default False

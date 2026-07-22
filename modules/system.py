@@ -627,7 +627,7 @@ async def get_closest_nodes(nodeInt=1,returnCount=3, channel=publicChannel):
                         distance = round(geopy.distance.geodesic((latitudeValue, longitudeValue), (latitude, longitude)).m, 2)
                         
                         if (distance < sentry_radius):
-                            if (nodeID not in my_node_ids) and str(nodeID) not in sentryIgnoreList:
+                            if (nodeID not in my_node_ids) and normalize_node_id(nodeID) not in sentryIgnoreList:
                                 node_list.append({'id': nodeID, 'latitude': latitude, 'longitude': longitude, 'distance': distance})
                                 
                     except Exception as e:
@@ -686,10 +686,10 @@ def getFavoritNodes(nodeInt=1):
 def handleSentinelIgnore(nodeInt=1, nodeID=0, aor=False):
     #aor is add or remove if True add, if False remove
     if aor:
-        sentryIgnoreList.append(str(nodeID))
+        sentryIgnoreList.append(normalize_node_id(nodeID))
         logger.info(f"System: Added {nodeID} to sentry ignore list")
     else:
-        sentryIgnoreList.remove(str(nodeID))
+        sentryIgnoreList.remove(normalize_node_id(nodeID))
         logger.info(f"System: Removed {nodeID} from sentry ignore list")
 
 def messageChunker(message):
@@ -1589,7 +1589,7 @@ def consumeMetadata(packet, rxNode=0, channel=-1):
                         if logMetaStats:
                             logger.info(f"System: ✈️ New air speed record: {speed} km/h from NodeID:{nodeID} ShortName:{get_name_from_number(nodeID, 'short', rxNode)}")
             # if altitude is over highfly_altitude send a log and message for high-flying nodes and not in highfly_ignoreList
-            if position_data.get('altitude', 0) > highfly_altitude and highfly_enabled and str(nodeID) not in highfly_ignoreList and not isNodeBanned(nodeID):
+            if position_data.get('altitude', 0) > highfly_altitude and highfly_enabled and normalize_node_id(nodeID) not in highfly_ignoreList and str(nodeID) not in autoBanlist:
                 logger.info(f"System: High Altitude {position_data['altitude']}m on Device: {rxNode} Channel: {channel} NodeID:{nodeID} Lat:{position_data.get('latitude', 0)} Lon:{position_data.get('longitude', 0)}")
                 altFeet = round(position_data['altitude'] * 3.28084, 2)
                 msg = f"🚀 High Altitude Detected! NodeID:{nodeID} Alt:{altFeet:,.0f}ft/{position_data['altitude']:,.0f}m"
@@ -1895,7 +1895,7 @@ def get_mesh_leaderboard(msg, fromID, deviceID):
     global meshLeaderboard
     result = "📊Leaderboard📊\n"
 
-    if "reset" in msg.lower() and str(fromID) in bbs_admin_list:
+    if "reset" in msg.lower() and isNodeAdmin(fromID):
         initializeMeshLeaderboard()
         return "✅ Leaderboard has been reset."
 
@@ -2160,13 +2160,13 @@ async def handleSentinel(deviceID):
         node_id = node['id']
         distance = node['distance']
 
-        if str(node_id) in sentryIgnoreList:
+        if normalize_node_id(node_id) in sentryIgnoreList:
             return
         # Message conditions
-        if distance >= sentry_radius and str(node_id) and str(node_id) in sentryWatchList:
+        if distance >= sentry_radius and node_id and normalize_node_id(node_id) in sentryWatchList:
             # Outside zone
             detectedNearby = f"{get_name_from_number(node_id, 'long', deviceID)}, {get_name_from_number(node_id, 'short', deviceID)}, {node_id}, {decimal_to_hex(node_id)} at {distance}m (OUTSIDE ZONE)"
-        elif distance <= sentry_radius and str(node_id) not in sentryWatchList:
+        elif distance <= sentry_radius and normalize_node_id(node_id) not in sentryWatchList:
             # Inside the zone
             detectedNearby = f"{get_name_from_number(node_id, 'long', deviceID)}, {get_name_from_number(node_id, 'short', deviceID)}, {node_id}, {decimal_to_hex(node_id)} at {distance}m (INSIDE ZONE)"
 

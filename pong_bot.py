@@ -168,7 +168,7 @@ def handle_motd(message, message_from_id, isDM):
     # check if the message_from_id is in the bbs_admin_list
     if my_settings.bbs_admin_list != ['']:
         for admin in my_settings.bbs_admin_list:
-            if str(message_from_id) == admin:
+            if normalize_node_id(message_from_id) == normalize_node_id(admin):
                 isAdmin = True
                 break
     else:

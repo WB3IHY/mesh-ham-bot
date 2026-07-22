@@ -191,9 +191,10 @@ def call_external_script(message, script="runShell.sh"):
 
 waitingXroom = {}   # {message_from_id: (expected_answer, original_command, timestamp)}
 def handleShellCmd(message, message_from_id, channel_number, isDM, deviceID):
+    from modules.system import isNodeAdmin # deferred: system.py imports this module before isNodeAdmin is defined
     if not allowXcmd:
         return "x: command is disabled"
-    if str(message_from_id) not in bbs_admin_list:
+    if not isNodeAdmin(message_from_id):
         logger.warning(f"FileMon: Unauthorized x: command attempt from {message_from_id}")
         return "x: command not authorized"
     if not isDM:
