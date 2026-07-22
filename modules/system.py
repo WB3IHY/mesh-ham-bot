@@ -15,6 +15,7 @@ import io # for suppressing output on watchdog
 # homebrew 'modules'
 from modules.settings import *
 from modules.log import logger, getPrettyTime, CustomFormatter
+from modules.bbs.db import normalize_node_id # pure string/int utility, no BBS-specific dependencies
 
 # Global Variables
 trap_list = ("cmd","cmd?","bannode","share",) # base commands
@@ -1104,9 +1105,12 @@ def load_bbsBanList():
 
 def isNodeAdmin(nodeID):
     # check if the nodeID is in the bbs_admin_list
+    # both sides are normalized to !hex since bbs_admin_list comes verbatim from config.ini
+    # (commonly bare hex) while callers here pass the raw decimal node ID/int
     if bbs_admin_list != ['']:
+        normalized = normalize_node_id(nodeID)
         for admin in bbs_admin_list:
-            if str(nodeID) == admin:
+            if normalized == normalize_node_id(admin):
                 return True
     return False
 
