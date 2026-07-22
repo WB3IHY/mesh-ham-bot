@@ -19,7 +19,7 @@ from modules.bbs.db import normalize_node_id # pure string/int utility, no BBS-s
 from modules.nodes_db import get_node, record_pubkey_change, clear_pubkey_flag
 
 # Global Variables
-trap_list = ("cmd","cmd?","bannode","share","ackkey","adminhelp",) # base commands
+trap_list = ("cmd","cmd?","bannode","share","ackkey","adminhelp","admincallsign","adminlocation",) # base commands
 help_message = "Bot CMD?:"
 asyncLoop = asyncio.new_event_loop()
 main_loop = None  # set by mesh_bot.main() so onDisconnect can schedule coroutines thread-safely
@@ -122,7 +122,7 @@ if coastalEnabled:
         
 # BBS Configuration
 # Admin command list — merged into cmd?'s output only for admins (see handle_cmd in mesh_bot.py)
-_admin_commands = ["ackkey", "adminhelp"]
+_admin_commands = ["ackkey", "adminhelp", "admincallsign", "adminlocation"]
 
 if bbs_enabled:
     from modules.bbs.db import initialize_database, set_db_path, is_banned
@@ -200,10 +200,6 @@ if sentry_enabled:
 if store_forward_enabled:
     trap_list = trap_list + ("messages",)
     help_message = help_message + ", messages"
-
-# Greeter Configuration
-if greeter_enabled:
-    from modules.greeter import * # say hello to new nodes we haven't seen before
 
 # File Monitor Configuration
 if file_monitor_enabled or read_news_enabled or bee_enabled or enable_runShellCmd or cmdShellSentryAlerts:

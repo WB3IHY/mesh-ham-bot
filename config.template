@@ -249,7 +249,6 @@ eAlertBroadcastCh =
 # Greeter: say hello to new nodes we haven't seen before
 [greeter]
 enabled = False
-greeter_db = data/greeter.db
 greeter_hello_string = "MeshBot says Hello! DM for more info."
 # Training mode will not send the hello message to new nodes
 training = True

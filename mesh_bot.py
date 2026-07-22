@@ -86,6 +86,8 @@ def auto_response(message, snr, rssi, hop, pkiStatus, message_from_id, channel_n
     "banlist": lambda: handle_ban_list() if require_admin(message_from_id) else "Not authorized.",
     "ackkey": lambda: handle_ackkey(message) if isNodeAdmin(message_from_id) else "Not authorized.",
     "adminhelp": lambda: handle_adminhelp() if isNodeAdmin(message_from_id) else "Not authorized.",
+    "admincallsign": lambda: handle_admincallsign(message) if isNodeAdmin(message_from_id) else "Not authorized.",
+    "adminlocation": lambda: handle_adminlocation(message) if isNodeAdmin(message_from_id) else "Not authorized.",
     "bbsstats": lambda: handle_bbs_stats() if require_admin(message_from_id) else "Not authorized.",
     "maildelete": lambda: handle_mail_delete(message, message_from_id) if require_admin(message_from_id) else "Not authorized.",
     "chandel": lambda: handle_channel_delete(message, message_from_id) if require_admin(message_from_id) else "Not authorized.",
@@ -565,10 +567,61 @@ def handle_ackkey(message):
     clear_pubkey_flag(target)
     return f"✅ Pubkey change flag cleared for {target}."
 
+def handle_admincallsign(message):
+    # Admin: set/override a callsign for another node on their behalf (e.g. FCC
+    # address of record lags behind a real-world move).
+    parts = message.strip().split(None, 2)
+    if len(parts) < 3:
+        return "Usage: admincallsign <nodeid> <callsign>"
+    target, callsign = parts[1].strip(), parts[2].strip()
+    result = get_callsign_location(callsign)
+    if result == my_settings.ERROR_FETCHING_DATA:
+        return my_settings.ERROR_FETCHING_DATA
+    if result is None:
+        return f"Callsign '{callsign.upper()}' not found in the FCC database."
+    _, _, city_state = result
+    set_callsign(target, callsign.upper(), 'override')
+    if city_state:
+        return f"✅ Callsign for {target} set to {callsign.upper()} ({city_state})."
+    return f"✅ Callsign for {target} set to {callsign.upper()}."
+
+def handle_adminlocation(message):
+    # Admin: directly save+activate a location for another node in one step —
+    # covers a node that can't self-service at all (e.g. DM broken from a pubkey
+    # mismatch) as well as correcting a stale FCC-derived QTH.
+    parts = message.strip().split(None, 2)
+    if len(parts) < 3 or ',' not in parts[2]:
+        return "Usage: adminlocation <nodeid> <lat>,<lon> [description]"
+    target = parts[1].strip()
+    coord_parts = parts[2].split(None, 1)
+    try:
+        lat_str, lon_str = coord_parts[0].split(',', 1)
+        lat, lon = float(lat_str), float(lon_str)
+    except ValueError:
+        return "Invalid coordinates. Usage: adminlocation <nodeid> <lat>,<lon> [description]"
+    description = coord_parts[1].strip() if len(coord_parts) > 1 else "Set by admin"
+
+    location_name = "admin-set"
+    success, msg, _ = save_location_to_db(location_name, lat, lon, description, target, False)
+    if not success:
+        # overwrite semantics: this is a correction, not a new save
+        delete_location_from_db(location_name, target)
+        success, msg, _ = save_location_to_db(location_name, lat, lon, description, target, False)
+        if not success:
+            return f"🚫{msg}"
+    set_active_location(target, location_name)
+    return f"✅ Location for {target} set to {lat},{lon} and activated."
+
 def handle_adminhelp():
     # Detailed admin command reference, with argument syntax — cmd?'s admin-merged
     # list (see handle_cmd) shows admins *what* exists; this shows *how* to use it.
-    lines = ["Admin Commands:", "ackkey <nodeid>", "adminhelp"]
+    lines = [
+        "Admin Commands:",
+        "ackkey <nodeid>",
+        "adminhelp",
+        "admincallsign <nodeid> <callsign>",
+        "adminlocation <nodeid> <lat>,<lon> [description]",
+    ]
     if my_settings.bbs_enabled:
         lines.append(handle_admin_help())
     return "\n".join(lines)
@@ -1584,14 +1637,15 @@ def onReceive(packet, interface):
                     
                     # if Greeter enabled check if we have said hello
                     if my_settings.greeter_enabled:
-                        if never_seen_before(message_from_id):
+                        greeter_row = get_node(message_from_id)
+                        if greeter_row is None or not greeter_row['greeted']:
                             name = get_name_from_number(message_from_id, 'short', rxNode)
                             if isinstance(name, str) and name.startswith("!") and len(name) == 9:
                                 # we didnt get a info packet yet so wait and ingore this go around
                                 logger.debug(f"System: Greeter Hello ignored, no info packet yet")
                             else:
                                 # record that we've greeted this node
-                                hello(message_from_id, name)
+                                mark_greeted(message_from_id)
                                 # send a hello message as a DM
                                 if not my_settings.train_greeter:
                                     send_message(f"Hello {name} {greeter_hello_string}", channel_number, message_from_id, rxNode, reply_id=packet_id)

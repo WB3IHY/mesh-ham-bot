@@ -1915,6 +1915,7 @@ def mapHandler(userID, deviceID, channel_number, message, snr, rssi, hop):
             f"'map <name>' - heading to saved\n"
             f"'map public <name>' - heading to public\n"
             f"'map delete <name>' \n"
+            f"'map active <name>' - Use as your location when you have no GPS fix\n"
             f"'map list' - List\n"
             f"'map log <description>' - Log CSV\n"
         )
@@ -1982,7 +1983,19 @@ def mapHandler(userID, deviceID, channel_number, message, snr, rssi, hop):
             return f"🗑️{msg}"
         else:
             return f"🚫{msg}"
-    
+
+    # Handle "active" command — switch which saved location the resolver falls back to
+    # when this node has no GPS fix (e.g. a seasonal QTH: summer home, winter cabin)
+    if command.lower().startswith("active "):
+        location_name = command[7:].strip()
+        if not location_name:
+            return "🚫Usage: map active <name>"
+        existing = get_location_from_db(location_name, str(userID))
+        if not existing:
+            return f"🚫Location '{location_name}' not found. Use 'map list' to see available locations."
+        set_active_location(userID, location_name)
+        return f"📍Active location set to '{location_name}'. Location commands will use this when you have no GPS fix."
+
     # Handle "public" command to retrieve public locations (even if user has private with same name)
     if command.lower().startswith("public "):
         location_name = command[7:].strip()  # Remove "public " prefix

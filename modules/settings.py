@@ -117,7 +117,7 @@ if 'emergencyHandler' not in config:
     config.write(open(config_file, 'w'))
 
 if 'greeter' not in config:
-    config['greeter'] = {'enabled': 'False', 'greeter_db': 'data/greeter.db', 'greeter_hello_string': 'send CMD or DM me for more info.'}
+    config['greeter'] = {'enabled': 'False', 'greeter_hello_string': 'send CMD or DM me for more info.'}
     config.write(open(config_file, 'w'))
 
 if 'location' not in config:
@@ -360,9 +360,8 @@ try:
     bbsdb = config['bbs'].get('bbsdb', 'data/bbs.db')
     bbs_admin_list = config['bbs'].get('bbs_admin_list', '').split(',')
     
-    # greeter (say hello to new nodes)
+    # greeter (say hello to new nodes) — greeted status now lives in nodes_db, see modules/nodes_db.py
     greeter_enabled = config['greeter'].getboolean('enabled', False)
-    greeter_db = config['greeter'].get('greeter_db', 'data/greeter.db')
     greeter_hello_string = config['greeter'].get('greeter_hello_string', 'MeshBot says Hello! DM for more info.')
     train_greeter = config['greeter'].getboolean('training', True)
 
