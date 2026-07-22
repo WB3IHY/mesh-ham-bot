@@ -16,9 +16,10 @@ import io # for suppressing output on watchdog
 from modules.settings import *
 from modules.log import logger, getPrettyTime, CustomFormatter
 from modules.bbs.db import normalize_node_id # pure string/int utility, no BBS-specific dependencies
+from modules.nodes_db import get_node, record_pubkey_change, clear_pubkey_flag
 
 # Global Variables
-trap_list = ("cmd","cmd?","bannode","share",) # base commands
+trap_list = ("cmd","cmd?","bannode","share","ackkey",) # base commands
 help_message = "Bot CMD?:"
 asyncLoop = asyncio.new_event_loop()
 main_loop = None  # set by mesh_bot.main() so onDisconnect can schedule coroutines thread-safely
@@ -891,6 +892,18 @@ def send_message(message, ch, nodeid=0, nodeInt=1, bypassChuncking=False, reply_
         logger.error(f"System: Exception during send_message: {e} (message length: {len(message)})")
         return False
 
+def notify_admins(msg, nodeInt=1):
+    # DM every configured admin — for events needing human review (e.g. a detected
+    # node identity change) rather than a normal command reply.
+    for admin in bbs_admin_list:
+        if not admin:
+            continue
+        try:
+            admin_num = int(admin.lstrip('!'), 16)
+            send_message(msg, 0, admin_num, nodeInt)
+        except (ValueError, AttributeError) as e:
+            logger.warning(f"System: Could not notify admin '{admin}': {e}")
+
 def send_raw_bytes(nodeid, raw_bytes, nodeInt=1, channel=0, portnum=256, want_ack=True, reply_id=None):
     # Send raw bytes to a node using the Meshtastic interface.
     interface = globals()[f'interface{nodeInt}']
@@ -1432,6 +1445,61 @@ PKI_ROUTING_ERROR_HINTS = {
     'PKI_FAILED': 'PKI was explicitly requested but send prerequisites were not met. Verify PKI-capable firmware/config, key material, and direct-send destination.',
 }
 
+_last_pubkey_check = {}
+PUBKEY_CHECK_INTERVAL_SECONDS = 300  # rate-limit: this runs on every non-text packet from every node
+
+def check_pubkey_change(nodeID, rxNode=1, channel=0):
+    """
+    Compare a node's current live public key (from meshtasticd's own NodeDB, already
+    reflected in interface.nodes) against what nodes_db last recorded for it. On a
+    genuine mismatch: record it, auto-update our copy (safe — this only affects who
+    we think currently holds this node ID, not any privilege), and notify — one
+    in-channel notice (bypassing the DM-only setting, since a stale key is exactly
+    why DM can't reach this node) plus a DM to every admin. Admin status, callsign,
+    and active location are deliberately NOT auto-carried forward to the new key —
+    only an admin clearing the flag (ackkey) makes that trust decision.
+    """
+    global _last_pubkey_check
+    now = time.time()
+    if now - _last_pubkey_check.get(nodeID, 0) < PUBKEY_CHECK_INTERVAL_SECONDS:
+        return
+    _last_pubkey_check[nodeID] = now
+
+    try:
+        interface = globals().get(f'interface{rxNode}')
+        if not interface or not getattr(interface, 'nodes', None):
+            return
+        node = interface.nodes.get(nodeID)
+        if not node:
+            return
+        current_key = node.get('user', {}).get('publicKey')
+        if not current_key:
+            return
+
+        row = get_node(nodeID)
+        if row is None or not row['public_key']:
+            # first time we've recorded a key for this node — nothing to compare against yet
+            return
+        if row['public_key'] == current_key:
+            return
+
+        record_pubkey_change(nodeID, current_key)
+        name = get_name_from_number(nodeID, 'short', rxNode)
+        node_hex = decimal_to_hex(nodeID)
+        logger.warning(f"System: Public key change detected for {name} ({node_hex})")
+        send_message(
+            f"📡 {name} appears to have reset their node (new identity detected). "
+            f"If that's you, replies should work again now; if not, contact an admin.",
+            channel, 0, rxNode
+        )
+        notify_admins(
+            f"⚠️ Public key change detected for {name} ({node_hex}). "
+            f"Use 'ackkey {node_hex}' to clear the flag once reviewed.",
+            rxNode
+        )
+    except Exception as e:
+        logger.error(f"System: Error checking pubkey change for {nodeID}: {e}")
+
 def consumeMetadata(packet, rxNode=0, channel=-1):
     global positionMetadata, localTelemetryData, meshLeaderboard
     uptime = battery = temp = iaq = nodeID = 0
@@ -1446,6 +1514,8 @@ def consumeMetadata(packet, rxNode=0, channel=-1):
         
         # if not a bot ID track it
         if nodeID != globals().get(f'myNodeNum{rxNode}') and nodeID != 0:
+            check_pubkey_change(nodeID, rxNode, channel)
+
             # consider Meta for highest and weakest DBm
             if packet.get('rxSnr') is not None:
                 dbm = packet['rxSnr']

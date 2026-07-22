@@ -84,6 +84,7 @@ def auto_response(message, snr, rssi, hop, pkiStatus, message_from_id, channel_n
     "ban": lambda: handle_ban(message, message_from_id) if require_admin(message_from_id) else "Not authorized.",
     "unban": lambda: handle_unban(message, message_from_id) if require_admin(message_from_id) else "Not authorized.",
     "banlist": lambda: handle_ban_list() if require_admin(message_from_id) else "Not authorized.",
+    "ackkey": lambda: handle_ackkey(message) if isNodeAdmin(message_from_id) else "Not authorized.",
     "bbsstats": lambda: handle_bbs_stats() if require_admin(message_from_id) else "Not authorized.",
     "maildelete": lambda: handle_mail_delete(message, message_from_id) if require_admin(message_from_id) else "Not authorized.",
     "chandel": lambda: handle_channel_delete(message, message_from_id) if require_admin(message_from_id) else "Not authorized.",
@@ -549,6 +550,17 @@ def handle_mynodecallsign(message_from_id, deviceID, message):
     if city_state:
         return f"✅ Callsign set to {callsign.upper()} ({city_state}). Location commands will use this QTH when you have no GPS fix."
     return f"✅ Callsign set to {callsign.upper()}. Location commands will use this QTH when you have no GPS fix."
+
+def handle_ackkey(message):
+    # Admin: acknowledge a detected public-key change and clear the review flag.
+    # Deliberately doesn't touch callsign/active_location/admin status for the node —
+    # only clears the flag; carrying forward trust is a separate, human decision.
+    parts = message.strip().split(None, 1)
+    if len(parts) < 2 or not parts[1].strip():
+        return "Usage: ackkey <nodeid>"
+    target = parts[1].strip()
+    clear_pubkey_flag(target)
+    return f"✅ Pubkey change flag cleared for {target}."
 
 def handle_riverFlow(message, message_from_id, deviceID, vox=False):
     # River Flow from NOAA or Open-Meteo
