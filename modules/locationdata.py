@@ -18,8 +18,9 @@ import re
 import sqlite3
 from urllib.parse import quote
 from modules.bbs.db import normalize_node_id # pure string/int utility, no BBS-specific dependencies
+from modules.nodes_db import get_node, upsert_node_seen, set_callsign, set_active_location, mark_location_fallback_disclosed
 
-trap_list_location = ("whereami", "wx", "wxa", "wxalert", "wxfind", "wxcall", "rlist", "ea", "ealert", "riverflow", "valert", "earthquake", "howfar", "map", "grid", "locator",)
+trap_list_location = ("whereami", "wx", "wxa", "wxalert", "wxfind", "wxcall", "mynodecallsign", "rlist", "ea", "ealert", "riverflow", "valert", "earthquake", "howfar", "map", "grid", "locator",)
 
 def get_grid_square(lat=0, lon=0):
     # Maidenhead grid locator for the node's last known position
@@ -170,6 +171,75 @@ def _geocode_callsign_fallback(city_state):
         return coords
     lat, lon = coords
     return lat, lon, city_state
+
+def resolve_location_with_disclosure(node_id, deviceID, channel_number=0):
+    """
+    Resolve a node's location for commands with "give me info about my location"
+    semantics. Tries, in order: fresh GPS, an active saved location (set via map
+    or an admin override), then a callsign-derived QTH (an explicit mynodecallsign
+    override, or auto-extracted from the node's long name and validated against
+    the FCC database via get_callsign_location() — the same lookup wxcall uses).
+
+    Returns (lat, lon, disclosure_or_None) on success, or None if nothing resolves
+    (callers should show my_settings.NO_GPS_OR_CALLSIGN in that case). The
+    disclosure line is only populated the first time a non-GPS source is used for
+    a given node — later calls stay silent (nodes.location_fallback_disclosed).
+    """
+    from modules.system import get_node_location, get_name_from_number
+
+    location = get_node_location(node_id, deviceID, channel_number, require_known=True)
+    if location is not None:
+        return location[0], location[1], None
+
+    node_row = get_node(node_id)
+    if node_row is None:
+        # Node has no row yet (e.g. joined after the last boot pre-seed) — the setters
+        # below all UPDATE an existing row, so create one now or they'd silently no-op.
+        upsert_node_seen(node_id, get_name_from_number(node_id, 'long', deviceID),
+                          get_name_from_number(node_id, 'short', deviceID))
+        node_row = get_node(node_id)
+    already_disclosed = bool(node_row['location_fallback_disclosed']) if node_row else False
+
+    # Active saved location (e.g. a seasonal/temporary QTH) takes priority over callsign
+    active_name = node_row['active_location_name'] if node_row else None
+    if active_name:
+        saved = get_location_from_db(active_name, node_id)
+        if saved:
+            disclosure = None
+            if not already_disclosed:
+                disclosure = f"📍No GPS data available for this node. Using saved location '{active_name}'."
+                mark_location_fallback_disclosed(node_id)
+            return saved['lat'], saved['lon'], disclosure
+
+    # Callsign-derived QTH: an explicit mynodecallsign override takes priority over auto-extraction
+    callsign = node_row['callsign'] if node_row else None
+    if callsign:
+        result = get_callsign_location(callsign)
+        if isinstance(result, tuple):
+            lat, lon, _ = result
+            disclosure = None
+            if not already_disclosed:
+                disclosure = f"📍No GPS data available for this node. Using callsign {callsign} QTH location."
+                mark_location_fallback_disclosed(node_id)
+            return lat, lon, disclosure
+        # stored callsign didn't resolve this time (network hiccup, or FCC record changed) — no location
+        return None
+
+    # No callsign on file — try auto-extracting the leading token of the node's long name
+    long_name = (node_row['long_name'] if node_row else None) or get_name_from_number(node_id, 'long', deviceID)
+    token = long_name.strip().split()[0] if long_name and long_name.strip() else None
+    if token:
+        result = get_callsign_location(token)
+        if isinstance(result, tuple):
+            lat, lon, _ = result
+            set_callsign(node_id, token.upper(), 'auto_extracted')
+            disclosure = None
+            if not already_disclosed:
+                disclosure = f"📍No GPS data available for this node. Using callsign {token.upper()} QTH location."
+                mark_location_fallback_disclosed(node_id)
+            return lat, lon, disclosure
+
+    return None
 
 def getRepeaterBook(lat=0, lon=0):
     grid = mh.to_maiden(float(lat), float(lon))
@@ -1824,10 +1894,7 @@ def log_locationData_toMap(userID, location, message):
         return False
 
 def mapHandler(userID, deviceID, channel_number, message, snr, rssi, hop):
-    from modules.system import get_node_location
     command = message[len("map"):].strip()
-    location = get_node_location(userID, deviceID, require_known=True)
-    lat, lon = (location[0], location[1]) if location is not None else (None, None)
     """
     Handles 'map' commands from meshbot.
     Usage:
@@ -1885,16 +1952,18 @@ def mapHandler(userID, deviceID, channel_number, message, snr, rssi, hop):
             else:
                 description = f"Meta:{hop}"
         
-        if location is None:
+        result = resolve_location_with_disclosure(userID, deviceID, channel_number)
+        if result is None:
             return "🚫Location data is missing or invalid."
-        
+        lat, lon, disclosure = result
+
         # Get altitude for the node
         altitude = get_node_altitude(userID, deviceID)
-        
+
         success, msg, _ = save_location_to_db(location_name, lat, lon, description, str(userID), is_public, altitude)
-        
+
         if success:
-            return f"📍{msg}"
+            return (disclosure + "\n" if disclosure else "") + f"📍{msg}"
         else:
             return f"🚫{msg}"
     
@@ -1924,17 +1993,19 @@ def mapHandler(userID, deviceID, channel_number, message, snr, rssi, hop):
         
         if saved_location:
             # Calculate heading and distance from current location
-            if location is None:
+            loc_result = resolve_location_with_disclosure(userID, deviceID, channel_number)
+            if loc_result is None:
                 result = f"📍{saved_location['name']} (Public): {saved_location['lat']:.5f}, {saved_location['lon']:.5f}"
                 if saved_location.get('altitude') is not None:
                     result += f" @ {saved_location['altitude']:.1f}m"
                 result += "\n🚫Current location not available for heading"
                 return result
-            
+            lat, lon, disclosure = loc_result
+
             bearing, distance_km, error = calculate_heading_and_distance(
                 lat, lon, saved_location['lat'], saved_location['lon']
             )
-            
+
             if error:
                 return f"📍{saved_location['name']} (Public): {error}"
             
@@ -1990,7 +2061,7 @@ def mapHandler(userID, deviceID, channel_number, message, snr, rssi, hop):
             
             if saved_location['description']:
                 result += f"\n📝{saved_location['description']}"
-            return result
+            return (disclosure + "\n" if disclosure else "") + result
         else:
             return f"🚫Public location '{location_name}' not found."
     
@@ -2012,13 +2083,14 @@ def mapHandler(userID, deviceID, channel_number, message, snr, rssi, hop):
         if hop is not None:
             description += f" Meta:{hop}"
 
-        # location should be a tuple: (lat, lon)
-        if location is None:
+        result = resolve_location_with_disclosure(userID, deviceID, channel_number)
+        if result is None:
             return "🚫Location data is missing or invalid."
+        lat, lon, disclosure = result
 
-        success = log_locationData_toMap(userID, location, description)
+        success = log_locationData_toMap(userID, (lat, lon), description)
         if success:
-            return f"📍Location logged (CSV)"
+            return (disclosure + "\n" if disclosure else "") + f"📍Location logged (CSV)"
         else:
             return "🚫Failed to log location. Please try again."
     
@@ -2029,13 +2101,15 @@ def mapHandler(userID, deviceID, channel_number, message, snr, rssi, hop):
         
         if saved_location:
             # Calculate heading and distance from current location
-            if location is None:
+            loc_result = resolve_location_with_disclosure(userID, deviceID, channel_number)
+            if loc_result is None:
                 result = f"📍{saved_location['name']}: {saved_location['lat']:.5f}, {saved_location['lon']:.5f}"
                 if saved_location.get('altitude') is not None:
                     result += f" @ {saved_location['altitude']:.1f}m"
                 result += "\n🚫Current location not available for heading"
                 return result
-            
+            lat, lon, disclosure = loc_result
+
             bearing, distance_km, error = calculate_heading_and_distance(
                 lat, lon, saved_location['lat'], saved_location['lon']
             )
@@ -2095,7 +2169,7 @@ def mapHandler(userID, deviceID, channel_number, message, snr, rssi, hop):
             
             if saved_location['description']:
                 result += f"\n📝{saved_location['description']}"
-            return result
+            return (disclosure + "\n" if disclosure else "") + result
         else:
             # Location not found
             return f"🚫Location '{location_name}' not found. Use 'map list' to see available locations."

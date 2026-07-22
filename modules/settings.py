@@ -5,7 +5,7 @@ from modules.bbs.db import normalize_node_id # pure string/int utility, no BBS-s
 
 # messages
 NO_DATA_NOGPS = "No location data: does your device have GPS?"
-NO_LOCATION_ON_FILE = "📍No location on file for your node yet. Try wxfind <city or zip> or wxcall <callsign> instead."
+NO_GPS_OR_CALLSIGN = "No GPS data or callsign available for this node."
 ERROR_FETCHING_DATA = "error fetching data"
 WELCOME_MSG = 'MeshBot, here for you like a friend who is not. Try sending: ping @foo  or, CMD? for more'
 EMERGENCY_RESPONSE = "MeshBot detected a possible request for Emergency Assistance and alerted a wider audience."

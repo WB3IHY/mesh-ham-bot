@@ -81,7 +81,7 @@ if enableCmdHistory:
 if location_enabled:
     from modules.locationdata import * # from the spudgunman/meshing-around repo
     trap_list = trap_list + trap_list_location
-    help_message = help_message + ", whereami, wx, wxfind, wxcall, howfar, grid, map, earthquake, riverflow"
+    help_message = help_message + ", whereami, wx, wxfind, wxcall, mynodecallsign, howfar, grid, map, earthquake, riverflow"
     if enableGBalerts and not enableDEalerts:
         from modules.globalalert import * # from the spudgunman/meshing-around repo
         logger.warning(f"System: GB Alerts not functional at this time need to find a source API")

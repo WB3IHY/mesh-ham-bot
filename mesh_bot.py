@@ -141,6 +141,7 @@ def auto_response(message, snr, rssi, hop, pkiStatus, message_from_id, channel_n
     "wxc": lambda: handle_wxc(message_from_id, deviceID, 'wxc'),
     "wxfind": lambda: handle_wxfind(message_from_id, deviceID, message),
     "wxcall": lambda: handle_wxcall(message_from_id, deviceID, message),
+    "mynodecallsign": lambda: handle_mynodecallsign(message_from_id, deviceID, message),
     "📍": lambda: handle_whoami(message_from_id, deviceID, hop, snr, rssi, pkiStatus),
     "🔔": lambda: handle_alertBell(message_from_id, deviceID, message),
     "🐝": lambda: read_file("bee.txt", True),
@@ -463,17 +464,20 @@ def handle_wxalert(message_from_id, deviceID, message):
     if my_settings.use_meteo_wxApi:
         return "wxalert is not supported"
     else:
-        location = get_node_location(message_from_id, deviceID, require_known=True)
-        if location is None:
-            return my_settings.NO_LOCATION_ON_FILE
+        result = resolve_location_with_disclosure(message_from_id, deviceID)
+        if result is None:
+            return my_settings.NO_GPS_OR_CALLSIGN
+        lat, lon, disclosure = result
         if "wxalert" in message:
             # Detailed weather alert
-            weatherAlert = getActiveWeatherAlertsDetailNOAA(str(location[0]), str(location[1]))
+            weatherAlert = getActiveWeatherAlertsDetailNOAA(str(lat), str(lon))
         else:
-            weatherAlert = getWeatherAlertsNOAA(str(location[0]), str(location[1]))
+            weatherAlert = getWeatherAlertsNOAA(str(lat), str(lon))
 
         if my_settings.NO_ALERTS not in weatherAlert:
             weatherAlert = weatherAlert[0]
+        if disclosure:
+            weatherAlert = disclosure + "\n" + weatherAlert
         return weatherAlert
 
 def _get_weather_for_location(lat, lon, cmd, days=None):
@@ -489,10 +493,14 @@ def _get_weather_for_location(lat, lon, cmd, days=None):
 
 def handle_wxc(message_from_id, deviceID, cmd, days=None, vox=False):
     # Weather from NOAA or Open-Meteo
-    location = get_node_location(message_from_id, deviceID, require_known=True)
-    if location is None:
-        return my_settings.NO_LOCATION_ON_FILE
-    return _get_weather_for_location(location[0], location[1], cmd, days)
+    result = resolve_location_with_disclosure(message_from_id, deviceID)
+    if result is None:
+        return my_settings.NO_GPS_OR_CALLSIGN
+    lat, lon, disclosure = result
+    weather = _get_weather_for_location(lat, lon, cmd, days)
+    if disclosure:
+        return disclosure + "\n" + weather
+    return weather
 
 def handle_wxfind(message_from_id, deviceID, message, cmd='wx'):
     # Weather for a city/state/zip lookup, for nodes with no location on file
@@ -525,15 +533,35 @@ def handle_wxcall(message_from_id, deviceID, message, cmd='wx'):
         return f"{callsign.upper()} QTH: {city_state}\n{weather}"
     return weather
 
+def handle_mynodecallsign(message_from_id, deviceID, message):
+    # Self-service callsign override, used as a location fallback when this node has no GPS fix
+    parts = message.strip().split(None, 1)
+    if len(parts) < 2 or not parts[1].strip() or "?" in message:
+        return "Usage: mynodecallsign <callsign>, e.g. mynodecallsign W1AW"
+    callsign = parts[1].strip()
+    result = get_callsign_location(callsign)
+    if result == my_settings.ERROR_FETCHING_DATA:
+        return my_settings.ERROR_FETCHING_DATA
+    if result is None:
+        return f"Callsign '{callsign.upper()}' not found in the FCC database."
+    _, _, city_state = result
+    set_callsign(message_from_id, callsign.upper(), 'override')
+    if city_state:
+        return f"✅ Callsign set to {callsign.upper()} ({city_state}). Location commands will use this QTH when you have no GPS fix."
+    return f"✅ Callsign set to {callsign.upper()}. Location commands will use this QTH when you have no GPS fix."
+
 def handle_riverFlow(message, message_from_id, deviceID, vox=False):
     # River Flow from NOAA or Open-Meteo
+    disclosure = None
     if vox:
         location = (my_settings.latitudeValue, my_settings.longitudeValue)
         message = "riverflow"
     else:
-        location = get_node_location(message_from_id, deviceID, require_known=True)
-        if location is None:
-            return my_settings.NO_DATA_NOGPS
+        result = resolve_location_with_disclosure(message_from_id, deviceID)
+        if result is None:
+            return my_settings.NO_GPS_OR_CALLSIGN
+        location = (result[0], result[1])
+        disclosure = result[2]
     msg_lower = message.lower()
     if "riverflow " in msg_lower:
         user_input = msg_lower.split("riverflow ", 1)[1].strip()
@@ -545,35 +573,45 @@ def handle_riverFlow(message, message_from_id, deviceID, vox=False):
         userRiver = riverListDefault
 
     if use_meteo_wxApi:
-        return get_flood_openmeteo(location[0], location[1])
+        result_msg = get_flood_openmeteo(location[0], location[1])
     else:
         if not userRiver:
             return "No river gauge configured. Provide a NOAA/NWPS gauge ID: riverflow <gauge id>[,<gauge id2>...]"
-        msg = ""
+        result_msg = ""
         for river in userRiver:
-            msg += get_flood_noaa(location[0], location[1], river)
-        return msg
+            result_msg += get_flood_noaa(location[0], location[1], river)
+    if disclosure:
+        return disclosure + "\n" + result_msg
+    return result_msg
 
 def handle_emergency_alerts(message, message_from_id, deviceID):
     if my_settings.enableDEalerts:
         # nina Alerts
         return get_nina_alerts()
-    location = get_node_location(message_from_id, deviceID, require_known=True)
-    if location is None:
-        return my_settings.NO_DATA_NOGPS
+    result = resolve_location_with_disclosure(message_from_id, deviceID)
+    if result is None:
+        return my_settings.NO_GPS_OR_CALLSIGN
+    lat, lon, disclosure = result
     if message.lower().startswith("ealert"):
         # Detailed alert FEMA
-        return getIpawsAlert(str(location[0]), str(location[1]))
+        alert = getIpawsAlert(str(lat), str(lon))
     else:
         # Headlines only FEMA
-        return getIpawsAlert(str(location[0]), str(location[1]), shortAlerts=True)
+        alert = getIpawsAlert(str(lat), str(lon), shortAlerts=True)
+    if disclosure:
+        return disclosure + "\n" + alert
+    return alert
 
 def handleEarthquake(message, message_from_id, deviceID):
-    location = get_node_location(message_from_id, deviceID, require_known=True)
     if "earthquake" in message.lower():
-        if location is None:
-            return my_settings.NO_DATA_NOGPS
-        return checkUSGSEarthQuake(str(location[0]), str(location[1]))
+        result = resolve_location_with_disclosure(message_from_id, deviceID)
+        if result is None:
+            return my_settings.NO_GPS_OR_CALLSIGN
+        lat, lon, disclosure = result
+        quake = checkUSGSEarthQuake(str(lat), str(lon))
+        if disclosure:
+            return disclosure + "\n" + quake
+        return quake
 
 def handleNews(message_from_id, deviceID, message, isDM):
     news = ''
@@ -687,13 +725,16 @@ MAX_LLM_LOCATION_ENTRIES = 50
 MAX_LLM_RUNTIME_SAMPLES = 50
 
 def handle_satpass(message_from_id, deviceID, message='', vox=False):
+    disclosure = None
     if vox:
         location = (my_settings.latitudeValue, my_settings.longitudeValue)
         message = 'satpass'
     else:
-        location = get_node_location(message_from_id, deviceID, require_known=True)
-        if location is None:
-            return my_settings.NO_DATA_NOGPS
+        result = resolve_location_with_disclosure(message_from_id, deviceID)
+        if result is None:
+            return my_settings.NO_GPS_OR_CALLSIGN
+        location = (result[0], result[1])
+        disclosure = result[2]
     passes = ''
     satList = my_settings.satListConfig
     message = message.lower()
@@ -724,6 +765,8 @@ def handle_satpass(message_from_id, deviceID, message='', vox=False):
 
     if passes == '':
         passes = "No 🛰️ anytime soon"
+    if disclosure:
+        return disclosure + "\n" + passes
     return passes
         
 # handle_llm removed - LLM not included in mesh-ham-bot
@@ -777,10 +820,14 @@ def handle_sun(message_from_id, deviceID, channel_number, vox=False):
     if vox:
         # return a default message if vox is enabled
         return get_sun(str(my_settings.latitudeValue), str(my_settings.longitudeValue))
-    location = get_node_location(message_from_id, deviceID, channel_number, require_known=True)
-    if location is None:
-        return my_settings.NO_DATA_NOGPS
-    return get_sun(str(location[0]), str(location[1]))
+    result = resolve_location_with_disclosure(message_from_id, deviceID, channel_number)
+    if result is None:
+        return my_settings.NO_GPS_OR_CALLSIGN
+    lat, lon, disclosure = result
+    sun_info = get_sun(str(lat), str(lon))
+    if disclosure:
+        return disclosure + "\n" + sun_info
+    return sun_info
 
 def sysinfo(message, message_from_id, deviceID, isDM):
     if "?" in message:
@@ -901,51 +948,71 @@ def handle_history(message, nodeid, deviceID, isDM, lheard=False):
     return msg
 
 def handle_whereami(message_from_id, deviceID, channel_number):
-    location = get_node_location(message_from_id, deviceID, channel_number, require_known=True)
-    if location is None:
-        return my_settings.NO_DATA_NOGPS
+    result = resolve_location_with_disclosure(message_from_id, deviceID, channel_number)
+    if result is None:
+        return my_settings.NO_GPS_OR_CALLSIGN
+    lat, lon, disclosure = result
     # check api_throttle
     check_throttle = api_throttle(message_from_id, deviceID, apiName='whereami')
     if check_throttle:
         return check_throttle
-    return where_am_i(str(location[0]), str(location[1]))
+    whereIam = where_am_i(str(lat), str(lon))
+    if disclosure:
+        return disclosure + "\n" + whereIam
+    return whereIam
 
 def handle_grid(message_from_id, deviceID, channel_number):
-    location = get_node_location(message_from_id, deviceID, channel_number, require_known=True)
-    if location is None:
-        return my_settings.NO_DATA_NOGPS
-    return get_grid_square(str(location[0]), str(location[1]))
+    result = resolve_location_with_disclosure(message_from_id, deviceID, channel_number)
+    if result is None:
+        return my_settings.NO_GPS_OR_CALLSIGN
+    lat, lon, disclosure = result
+    grid = get_grid_square(str(lat), str(lon))
+    if disclosure:
+        return disclosure + "\n" + grid
+    return grid
 
 def handle_repeaterQuery(message_from_id, deviceID, channel_number):
-    location = get_node_location(message_from_id, deviceID, channel_number, require_known=True)
-    if location is None:
-        return my_settings.NO_DATA_NOGPS
+    result = resolve_location_with_disclosure(message_from_id, deviceID, channel_number)
+    if result is None:
+        return my_settings.NO_GPS_OR_CALLSIGN
+    lat, lon, disclosure = result
     # check api_throttle
     check_throttle = api_throttle(message_from_id, deviceID, apiName='repeaterQuery')
     if check_throttle:
         return check_throttle
     if repeater_lookup == "rbook":
-        return getRepeaterBook(str(location[0]), str(location[1]))
+        repeaters = getRepeaterBook(str(lat), str(lon))
     elif repeater_lookup == "artsci":
-        return getArtSciRepeaters(str(location[0]), str(location[1]))
+        repeaters = getArtSciRepeaters(str(lat), str(lon))
     else:
         return "Repeater lookup not enabled"
+    if disclosure:
+        return disclosure + "\n" + repeaters
+    return repeaters
 
 def handle_tide(message_from_id, deviceID, channel_number, vox=False):
     if vox:
         return get_NOAAtide(str(my_settings.latitudeValue), str(my_settings.longitudeValue))
-    location = get_node_location(message_from_id, deviceID, channel_number, require_known=True)
-    if location is None:
-        return my_settings.NO_DATA_NOGPS
-    return get_NOAAtide(str(location[0]), str(location[1]))
+    result = resolve_location_with_disclosure(message_from_id, deviceID, channel_number)
+    if result is None:
+        return my_settings.NO_GPS_OR_CALLSIGN
+    lat, lon, disclosure = result
+    tide = get_NOAAtide(str(lat), str(lon))
+    if disclosure:
+        return disclosure + "\n" + tide
+    return tide
 
 def handle_moon(message_from_id, deviceID, channel_number, vox=False):
     if vox:
         return get_moon(str(my_settings.latitudeValue), str(my_settings.longitudeValue))
-    location = get_node_location(message_from_id, deviceID, channel_number, require_known=True)
-    if location is None:
-        return my_settings.NO_DATA_NOGPS
-    return get_moon(str(location[0]), str(location[1]))
+    result = resolve_location_with_disclosure(message_from_id, deviceID, channel_number)
+    if result is None:
+        return my_settings.NO_GPS_OR_CALLSIGN
+    lat, lon, disclosure = result
+    moon_info = get_moon(str(lat), str(lon))
+    if disclosure:
+        return disclosure + "\n" + moon_info
+    return moon_info
 
 def handle_whoami(message_from_id, deviceID, hop, snr, rssi, pkiStatus):
     try:

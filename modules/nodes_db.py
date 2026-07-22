@@ -69,6 +69,23 @@ def get_node(node_id):
     return c.fetchone()
 
 
+def _ensure_node_row(normalized_id):
+    """
+    Make sure a row exists for this (already-normalized) node_id before a setter
+    UPDATEs it — every setter below only UPDATEs, so a node with no row yet
+    (e.g. one that joined after the last boot pre-seed) would otherwise have the
+    update silently do nothing.
+    """
+    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute(
+        "INSERT OR IGNORE INTO nodes (node_id, first_seen, last_seen) VALUES (?, ?, ?)",
+        (normalized_id, now, now)
+    )
+    conn.commit()
+
+
 def upsert_node_seen(node_id, long_name=None, short_name=None, public_key=None, greeted=None):
     """
     Record that we've seen this node, updating cached name/key fields and last_seen.
@@ -112,6 +129,7 @@ def upsert_node_seen(node_id, long_name=None, short_name=None, public_key=None, 
 
 def mark_greeted(node_id):
     normalized = normalize_node_id(node_id)
+    _ensure_node_row(normalized)
     conn = get_db_connection()
     c = conn.cursor()
     c.execute("UPDATE nodes SET greeted = 1 WHERE node_id = ?", (normalized,))
@@ -120,6 +138,7 @@ def mark_greeted(node_id):
 
 def set_callsign(node_id, callsign, source):
     normalized = normalize_node_id(node_id)
+    _ensure_node_row(normalized)
     conn = get_db_connection()
     c = conn.cursor()
     c.execute("UPDATE nodes SET callsign = ?, callsign_source = ? WHERE node_id = ?",
@@ -129,6 +148,7 @@ def set_callsign(node_id, callsign, source):
 
 def set_active_location(node_id, location_name):
     normalized = normalize_node_id(node_id)
+    _ensure_node_row(normalized)
     conn = get_db_connection()
     c = conn.cursor()
     c.execute("UPDATE nodes SET active_location_name = ? WHERE node_id = ?",
@@ -138,6 +158,7 @@ def set_active_location(node_id, location_name):
 
 def mark_location_fallback_disclosed(node_id):
     normalized = normalize_node_id(node_id)
+    _ensure_node_row(normalized)
     conn = get_db_connection()
     c = conn.cursor()
     c.execute("UPDATE nodes SET location_fallback_disclosed = 1 WHERE node_id = ?", (normalized,))
@@ -146,6 +167,7 @@ def mark_location_fallback_disclosed(node_id):
 
 def record_pubkey_change(node_id, new_public_key):
     normalized = normalize_node_id(node_id)
+    _ensure_node_row(normalized)
     now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     conn = get_db_connection()
     c = conn.cursor()
@@ -165,6 +187,7 @@ def record_pubkey_change(node_id, new_public_key):
 
 def clear_pubkey_flag(node_id):
     normalized = normalize_node_id(node_id)
+    _ensure_node_row(normalized)
     conn = get_db_connection()
     c = conn.cursor()
     c.execute("UPDATE nodes SET pubkey_flagged = 0 WHERE node_id = ?", (normalized,))
