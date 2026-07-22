@@ -6,9 +6,12 @@ LOGFILE="/var/log/mesh-ham-bot-watchdog.log"
 TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
 STALE_MINUTES=12  # bot saves every 5 min; 12 min means at least 2 missed saves
 
-# Check 1: Is meshtasticd reachable?
-if ! nc -z localhost 4403 2>/dev/null; then
-    echo "$TIMESTAMP | Port 4403 unreachable, restarting mesh-ham-bot" >> "$LOGFILE"
+# Check 1: Is meshtasticd listening? Checked via the kernel socket table (ss), not a live
+# TCP connect (nc -z) — meshtasticd's API only tolerates one client at a time and evicts
+# whoever's already connected (i.e. mesh-ham-bot) the instant anything else connects, so a
+# connecting probe here was itself bumping the bot's connection every 5 minutes.
+if ! ss -H -ltn "sport = :4403" 2>/dev/null | grep -q LISTEN; then
+    echo "$TIMESTAMP | Port 4403 not listening, restarting mesh-ham-bot" >> "$LOGFILE"
     systemctl stop mesh-ham-bot
     sleep 3
     systemctl start mesh-ham-bot
