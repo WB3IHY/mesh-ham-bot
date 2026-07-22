@@ -33,5 +33,31 @@ if [ -n "$LAST_LOG" ]; then
         sleep 3
         systemctl start mesh-ham-bot
         echo "$TIMESTAMP | mesh-ham-bot restarted" >> "$LOGFILE"
+        exit 0
+    fi
+fi
+
+# Check 3: Is the bot stuck mid-reconnect? onDisconnect schedules retry_interface() on the
+# asyncio loop, but that scheduling has been observed to silently fail to run at all (no
+# "Retrying interfaceN" log line ever follows) — the bot sits disconnected indefinitely
+# without erroring, which Check 2 wouldn't catch for up to STALE_MINUTES. A normal, working
+# retry cycle logs "InterfaceN Opened!" within ~15-20s of the disconnect, so if the most
+# recent disconnect is newer than the most recent successful reopen and it's been over a
+# minute, the reconnect is stuck.
+LAST_DISCONNECT=$(journalctl -u mesh-ham-bot --no-pager --since "10 minutes ago" --output=short-unix 2>/dev/null | grep "Abrupt disconnection detected" | tail -1 | awk '{print $1}')
+LAST_DISCONNECT=${LAST_DISCONNECT%.*}
+LAST_REOPEN=$(journalctl -u mesh-ham-bot --no-pager --since "10 minutes ago" --output=short-unix 2>/dev/null | grep -E "Interface[0-9]+ Opened!" | tail -1 | awk '{print $1}')
+LAST_REOPEN=${LAST_REOPEN%.*}
+
+if [ -n "$LAST_DISCONNECT" ]; then
+    if [ -z "$LAST_REOPEN" ] || [ "$LAST_DISCONNECT" -gt "$LAST_REOPEN" ]; then
+        STUCK_AGE=$(( NOW - LAST_DISCONNECT ))
+        if [ "$STUCK_AGE" -gt 60 ]; then
+            echo "$TIMESTAMP | Stuck mid-reconnect (disconnected ${STUCK_AGE}s ago, never reopened), restarting mesh-ham-bot" >> "$LOGFILE"
+            systemctl stop mesh-ham-bot
+            sleep 3
+            systemctl start mesh-ham-bot
+            echo "$TIMESTAMP | mesh-ham-bot restarted" >> "$LOGFILE"
+        fi
     fi
 fi
