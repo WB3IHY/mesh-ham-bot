@@ -16,7 +16,7 @@ import io # for suppressing output on watchdog
 from modules.settings import *
 from modules.log import logger, getPrettyTime, CustomFormatter
 from modules.bbs.db import normalize_node_id # pure string/int utility, no BBS-specific dependencies
-from modules.nodes_db import get_node, record_pubkey_change, clear_pubkey_flag
+from modules.nodes_db import get_node, upsert_node_seen, record_pubkey_change, clear_pubkey_flag
 
 # Global Variables
 trap_list = ("cmd","cmd?","bannode","share","ackkey","adminhelp","admincallsign","adminlocation",) # base commands
@@ -1447,25 +1447,35 @@ PKI_ROUTING_ERROR_HINTS = {
     'PKI_FAILED': 'PKI was explicitly requested but send prerequisites were not met. Verify PKI-capable firmware/config, key material, and direct-send destination.',
 }
 
-_last_pubkey_check = {}
-PUBKEY_CHECK_INTERVAL_SECONDS = 300  # rate-limit: this runs on every non-text packet from every node
+_last_node_sync = {}
+NODE_SYNC_INTERVAL_SECONDS = 300  # rate-limit: this runs on every non-text packet from every node
 
-def check_pubkey_change(nodeID, rxNode=1, channel=0):
+def sync_node_metadata(nodeID, rxNode=1, channel=0):
     """
-    Compare a node's current live public key (from meshtasticd's own NodeDB, already
-    reflected in interface.nodes) against what nodes_db last recorded for it. On a
-    genuine mismatch: record it, auto-update our copy (safe — this only affects who
-    we think currently holds this node ID, not any privilege), and notify — one
-    in-channel notice (bypassing the DM-only setting, since a stale key is exactly
-    why DM can't reach this node) plus a DM to every admin. Admin status, callsign,
-    and active location are deliberately NOT auto-carried forward to the new key —
-    only an admin clearing the flag (ackkey) makes that trust decision.
+    Periodically sync a node's cached long_name/short_name/public_key in nodes_db
+    against meshtasticd's own live view (already reflected in interface.nodes) —
+    the boot-time pre-seed only captures a snapshot, and nothing else keeps it
+    fresh as nodes rename themselves or change keys during ongoing operation.
+    Rate-limited per node since this runs on every non-text packet.
+
+    Name refresh is a plain sync: upsert_node_seen()'s COALESCE means a blank/
+    missing live value never clobbers what's already on file, and a name change
+    isn't a trust-relevant event, so there's nothing to flag or notify about.
+
+    Public key changes are handled differently, deliberately not a plain
+    overwrite-and-move-on: on a genuine mismatch, record it, auto-update our
+    copy (safe — this only affects who we think currently holds this node ID,
+    not any privilege), and notify — one in-channel notice (bypassing the
+    DM-only setting, since a stale key is exactly why DM can't reach this node)
+    plus a DM to every admin. Admin status, callsign, and active location are
+    deliberately NOT auto-carried forward to the new key — only an admin
+    clearing the flag (ackkey) makes that trust decision.
     """
-    global _last_pubkey_check
+    global _last_node_sync
     now = time.time()
-    if now - _last_pubkey_check.get(nodeID, 0) < PUBKEY_CHECK_INTERVAL_SECONDS:
+    if now - _last_node_sync.get(nodeID, 0) < NODE_SYNC_INTERVAL_SECONDS:
         return
-    _last_pubkey_check[nodeID] = now
+    _last_node_sync[nodeID] = now
 
     try:
         interface = globals().get(f'interface{rxNode}')
@@ -1474,11 +1484,19 @@ def check_pubkey_change(nodeID, rxNode=1, channel=0):
         node = interface.nodes.get(nodeID)
         if not node:
             return
-        current_key = node.get('user', {}).get('publicKey')
-        if not current_key:
-            return
+        user = node.get('user', {})
+        current_key = user.get('publicKey')
+        long_name = user.get('longName')
+        short_name = user.get('shortName')
 
         row = get_node(nodeID)
+
+        # Keep cached long_name/short_name current regardless of pubkey state
+        if long_name or short_name:
+            upsert_node_seen(nodeID, long_name, short_name, None)
+
+        if not current_key:
+            return
         if row is None or not row['public_key']:
             # first time we've recorded a key for this node — nothing to compare against yet
             return
@@ -1500,7 +1518,7 @@ def check_pubkey_change(nodeID, rxNode=1, channel=0):
             rxNode
         )
     except Exception as e:
-        logger.error(f"System: Error checking pubkey change for {nodeID}: {e}")
+        logger.error(f"System: Error syncing node metadata for {nodeID}: {e}")
 
 def consumeMetadata(packet, rxNode=0, channel=-1):
     global positionMetadata, localTelemetryData, meshLeaderboard
@@ -1516,7 +1534,7 @@ def consumeMetadata(packet, rxNode=0, channel=-1):
         
         # if not a bot ID track it
         if nodeID != globals().get(f'myNodeNum{rxNode}') and nodeID != 0:
-            check_pubkey_change(nodeID, rxNode, channel)
+            sync_node_metadata(nodeID, rxNode, channel)
 
             # consider Meta for highest and weakest DBm
             if packet.get('rxSnr') is not None:
