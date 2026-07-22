@@ -1322,7 +1322,11 @@ def compileFavoriteList(getInterfaceIDs=True):
                 if globals().get(f'interface{i}') and globals().get(f'interface{i}_enabled'):
                     for fav in bbs_admin_list + favoriteNodeList:
                         if fav != 0 and fav != '' and fav is not None:
-                            object = {'nodeID': fav, 'deviceID': i}
+                            # normalize to !hex, same as isNodeAdmin() above: entries here
+                            # come verbatim from config.ini (documented as decimal in
+                            # config.template, but bare hex is also historically accepted).
+                            # setFavorite()'s to_node_num() parses !hex unambiguously.
+                            object = {'nodeID': normalize_node_id(fav), 'deviceID': i}
                             # check object not already in the list
                             if object not in fav_list:
                                 fav_list.append(object)
