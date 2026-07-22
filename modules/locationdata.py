@@ -20,7 +20,7 @@ from urllib.parse import quote
 from modules.bbs.db import normalize_node_id # pure string/int utility, no BBS-specific dependencies
 from modules.nodes_db import get_node, upsert_node_seen, set_callsign, set_active_location, mark_location_fallback_disclosed
 
-trap_list_location = ("whereami", "wx", "wxa", "wxalert", "wxfind", "wxcall", "mynodecallsign", "rlist", "ea", "ealert", "riverflow", "valert", "earthquake", "howfar", "map", "grid", "locator",)
+trap_list_location = ("whereami", "wx", "wxa", "wxalert", "wxfind", "wxcall", "setnodecallsign", "rlist", "ea", "ealert", "riverflow", "valert", "earthquake", "howfar", "map", "grid", "locator",)
 
 def get_grid_square(lat=0, lon=0):
     # Maidenhead grid locator for the node's last known position
@@ -176,7 +176,7 @@ def resolve_location_with_disclosure(node_id, deviceID, channel_number=0):
     """
     Resolve a node's location for commands with "give me info about my location"
     semantics. Tries, in order: fresh GPS, an active saved location (set via map
-    or an admin override), then a callsign-derived QTH (an explicit mynodecallsign
+    or an admin override), then a callsign-derived QTH (an explicit setnodecallsign
     override, or auto-extracted from the node's long name and validated against
     the FCC database via get_callsign_location() — the same lookup wxcall uses).
 
@@ -211,7 +211,7 @@ def resolve_location_with_disclosure(node_id, deviceID, channel_number=0):
                 mark_location_fallback_disclosed(node_id)
             return saved['lat'], saved['lon'], disclosure
 
-    # Callsign-derived QTH: an explicit mynodecallsign override takes priority over auto-extraction
+    # Callsign-derived QTH: an explicit setnodecallsign override takes priority over auto-extraction
     callsign = node_row['callsign'] if node_row else None
     if callsign:
         result = get_callsign_location(callsign)

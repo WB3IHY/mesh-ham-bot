@@ -19,7 +19,7 @@ from modules.bbs.db import normalize_node_id # pure string/int utility, no BBS-s
 from modules.nodes_db import get_node, record_pubkey_change, clear_pubkey_flag
 
 # Global Variables
-trap_list = ("cmd","cmd?","bannode","share","ackkey",) # base commands
+trap_list = ("cmd","cmd?","bannode","share","ackkey","adminhelp",) # base commands
 help_message = "Bot CMD?:"
 asyncLoop = asyncio.new_event_loop()
 main_loop = None  # set by mesh_bot.main() so onDisconnect can schedule coroutines thread-safely
@@ -82,7 +82,7 @@ if enableCmdHistory:
 if location_enabled:
     from modules.locationdata import * # from the spudgunman/meshing-around repo
     trap_list = trap_list + trap_list_location
-    help_message = help_message + ", whereami, wx, wxfind, wxcall, mynodecallsign, howfar, grid, map, earthquake, riverflow"
+    help_message = help_message + ", whereami, wx, wxfind, wxcall, setnodecallsign, howfar, grid, map, earthquake, riverflow"
     if enableGBalerts and not enableDEalerts:
         from modules.globalalert import * # from the spudgunman/meshing-around repo
         logger.warning(f"System: GB Alerts not functional at this time need to find a source API")
@@ -121,6 +121,9 @@ if coastalEnabled:
     help_message = help_message + ", mwx, tide"
         
 # BBS Configuration
+# Admin command list — merged into cmd?'s output only for admins (see handle_cmd in mesh_bot.py)
+_admin_commands = ["ackkey", "adminhelp"]
+
 if bbs_enabled:
     from modules.bbs.db import initialize_database, set_db_path, is_banned
     from modules.bbs.commands import (
@@ -151,6 +154,9 @@ if bbs_enabled:
     )
     trap_list = trap_list + trap_list_bbs
     help_message = help_message + ", bbslist, bbsfind, bbshelp, bbsmenu"
+    _admin_commands += ["adminadd", "adminremove", "adminlist", "ban", "unban", "banlist", "bbsstats", "maildelete", "chandel"]
+
+admin_help_message = ", ".join(sorted(_admin_commands))
 
 # Dad Jokes Configuration
 if dad_jokes_enabled:

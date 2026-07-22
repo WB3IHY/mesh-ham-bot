@@ -85,6 +85,7 @@ def auto_response(message, snr, rssi, hop, pkiStatus, message_from_id, channel_n
     "unban": lambda: handle_unban(message, message_from_id) if require_admin(message_from_id) else "Not authorized.",
     "banlist": lambda: handle_ban_list() if require_admin(message_from_id) else "Not authorized.",
     "ackkey": lambda: handle_ackkey(message) if isNodeAdmin(message_from_id) else "Not authorized.",
+    "adminhelp": lambda: handle_adminhelp() if isNodeAdmin(message_from_id) else "Not authorized.",
     "bbsstats": lambda: handle_bbs_stats() if require_admin(message_from_id) else "Not authorized.",
     "maildelete": lambda: handle_mail_delete(message, message_from_id) if require_admin(message_from_id) else "Not authorized.",
     "chandel": lambda: handle_channel_delete(message, message_from_id) if require_admin(message_from_id) else "Not authorized.",
@@ -142,7 +143,7 @@ def auto_response(message, snr, rssi, hop, pkiStatus, message_from_id, channel_n
     "wxc": lambda: handle_wxc(message_from_id, deviceID, 'wxc'),
     "wxfind": lambda: handle_wxfind(message_from_id, deviceID, message),
     "wxcall": lambda: handle_wxcall(message_from_id, deviceID, message),
-    "mynodecallsign": lambda: handle_mynodecallsign(message_from_id, deviceID, message),
+    "setnodecallsign": lambda: handle_setnodecallsign(message_from_id, deviceID, message),
     "📍": lambda: handle_whoami(message_from_id, deviceID, hop, snr, rssi, pkiStatus),
     "🔔": lambda: handle_alertBell(message_from_id, deviceID, message),
     "🐝": lambda: read_file("bee.txt", True),
@@ -209,6 +210,8 @@ def handle_cmd(message, message_from_id, deviceID):
     # I didnt want to invoke the word "help" in Meshtastic due to its possible emergency use
     if " " in message and message.split(" ")[1] in trap_list:
         return "🤖 just use the commands directly in chat"
+    if isNodeAdmin(message_from_id):
+        return help_message + ", " + admin_help_message
     return help_message
 
 def handle_share(message, snr, rssi, hop, pkiStatus, message_from_id, channel_number, deviceID, isDM):
@@ -534,11 +537,11 @@ def handle_wxcall(message_from_id, deviceID, message, cmd='wx'):
         return f"{callsign.upper()} QTH: {city_state}\n{weather}"
     return weather
 
-def handle_mynodecallsign(message_from_id, deviceID, message):
+def handle_setnodecallsign(message_from_id, deviceID, message):
     # Self-service callsign override, used as a location fallback when this node has no GPS fix
     parts = message.strip().split(None, 1)
     if len(parts) < 2 or not parts[1].strip() or "?" in message:
-        return "Usage: mynodecallsign <callsign>, e.g. mynodecallsign W1AW"
+        return "Usage: setnodecallsign <callsign>, e.g. setnodecallsign W1AW (sets bot to recognize your node callsign as W1AW)"
     callsign = parts[1].strip()
     result = get_callsign_location(callsign)
     if result == my_settings.ERROR_FETCHING_DATA:
@@ -561,6 +564,14 @@ def handle_ackkey(message):
     target = parts[1].strip()
     clear_pubkey_flag(target)
     return f"✅ Pubkey change flag cleared for {target}."
+
+def handle_adminhelp():
+    # Detailed admin command reference, with argument syntax — cmd?'s admin-merged
+    # list (see handle_cmd) shows admins *what* exists; this shows *how* to use it.
+    lines = ["Admin Commands:", "ackkey <nodeid>", "adminhelp"]
+    if my_settings.bbs_enabled:
+        lines.append(handle_admin_help())
+    return "\n".join(lines)
 
 def handle_riverFlow(message, message_from_id, deviceID, vox=False):
     # River Flow from NOAA or Open-Meteo
