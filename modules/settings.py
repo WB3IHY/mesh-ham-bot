@@ -120,7 +120,7 @@ if 'greeter' not in config:
     config.write(open(config_file, 'w'))
 
 if 'location' not in config:
-    config['location'] = {'locations_db': 'data/locations.db', 'public_location_admin_manage': 'False', 'delete_public_locations_admins_only': 'False'}
+    config['location'] = {'locations_db': 'data/locations.db', 'public_location_admin_manage': 'False', 'delete_public_locations_admins_only': 'False', 'nodes_db': 'data/nodes.db'}
     config.write(open(config_file, 'w'))
 
 # interface1 settings
@@ -369,6 +369,7 @@ try:
     locations_db = config['location'].get('locations_db', 'data/locations.db')
     public_location_admin_manage = config['location'].getboolean('public_location_admin_manage', False)
     delete_public_locations_admins_only = config['location'].getboolean('delete_public_locations_admins_only', False)
+    nodes_db = config['location'].get('nodes_db', 'data/nodes.db')
     
     # repeater
     repeater_enabled = config['repeater'].getboolean('enabled', False)

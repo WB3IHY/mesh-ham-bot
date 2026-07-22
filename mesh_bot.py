@@ -1027,6 +1027,32 @@ def handle_boot(mesh=True):
                 set_db_path(my_settings.bbsdb)
                 initialize_database(seed_admins=my_settings.bbs_admin_list)
                 logger.debug(f"System: BBS Enabled, SQLite db ready at {my_settings.bbsdb}")
+
+            try:
+                from modules.nodes_db import initialize_nodes_database, set_db_path as set_nodes_db_path, upsert_node_seen
+                set_nodes_db_path(my_settings.nodes_db)
+                initialize_nodes_database()
+                seeded = 0
+                for i in range(1, 10):
+                    iface = globals().get(f'interface{i}')
+                    if iface is not None and getattr(iface, 'nodes', None):
+                        for node in iface.nodes.values():
+                            try:
+                                user = node.get('user', {})
+                                upsert_node_seen(
+                                    node.get('num'),
+                                    user.get('longName'),
+                                    user.get('shortName'),
+                                    user.get('publicKey'),
+                                    greeted=True
+                                )
+                                seeded += 1
+                            except Exception as e:
+                                logger.warning(f"System: Node Memory pre-seed skipped a node: {e}")
+                logger.debug(f"System: Node Memory Enabled, SQLite db ready at {my_settings.nodes_db} ({seeded} nodes pre-seeded/updated)")
+            except Exception as e:
+                logger.error(f"System: Error initializing Node Memory database: {e}")
+
             if my_settings.solar_conditions_enabled:
                 logger.debug("System: Celestial Telemetry Enabled")
 

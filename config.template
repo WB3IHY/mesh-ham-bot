@@ -176,6 +176,8 @@ locations_db = data/locations.db
 public_location_admin_manage = False
 # if True, only administrators can delete locations
 delete_public_locations_admins_only = False
+# database file for persistent per-node memory (callsign, active location, pubkey history, greeted status)
+nodes_db = data/nodes.db
 
 # Default to metric units rather than imperial
 useMetric = False
