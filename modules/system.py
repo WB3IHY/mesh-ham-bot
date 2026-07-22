@@ -80,7 +80,7 @@ if enableCmdHistory:
 if location_enabled:
     from modules.locationdata import * # from the spudgunman/meshing-around repo
     trap_list = trap_list + trap_list_location
-    help_message = help_message + ", whereami, wx, wxfind, wxcall, howfar, grid"
+    help_message = help_message + ", whereami, wx, wxfind, wxcall, howfar, grid, map, earthquake, riverflow"
     if enableGBalerts and not enableDEalerts:
         from modules.globalalert import * # from the spudgunman/meshing-around repo
         logger.warning(f"System: GB Alerts not functional at this time need to find a source API")
@@ -98,10 +98,6 @@ if location_enabled:
     else:
         # NOAA only features
         help_message = help_message + ", wxa, wxalert"
-
-    # USGS riverFlow Configuration
-    if riverListDefault != ['']:
-        help_message = help_message + ", riverflow"
 
     if repeater_lookup != False:
         help_message = help_message + ", rlist"

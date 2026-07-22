@@ -547,6 +547,8 @@ def handle_riverFlow(message, message_from_id, deviceID, vox=False):
     if use_meteo_wxApi:
         return get_flood_openmeteo(location[0], location[1])
     else:
+        if not userRiver:
+            return "No river gauge configured. Provide a NOAA/NWPS gauge ID: riverflow <gauge id>[,<gauge id2>...]"
         msg = ""
         for river in userRiver:
             msg += get_flood_noaa(location[0], location[1], river)
