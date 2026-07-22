@@ -17,6 +17,7 @@ import os
 import re
 import sqlite3
 from urllib.parse import quote
+from modules.bbs.db import normalize_node_id # pure string/int utility, no BBS-specific dependencies
 
 trap_list_location = ("whereami", "wx", "wxa", "wxalert", "wxfind", "wxcall", "rlist", "ea", "ealert", "riverflow", "valert", "earthquake", "howfar", "map", "grid", "locator",)
 
@@ -1412,6 +1413,17 @@ def initialize_locations_database():
                 except sqlite3.OperationalError:
                     # Column might already exist, ignore
                     pass
+
+            # Normalize userID to canonical !hex (migration) — legacy rows stored the raw
+            # decimal node ID; every read/write path now normalizes internally, but existing
+            # rows need a one-time conversion so lookups against them succeed.
+            c.execute("SELECT location_id, userID FROM locations WHERE userID IS NOT NULL AND userID NOT LIKE '!%'")
+            legacy_rows = c.fetchall()
+            for location_id, raw_userID in legacy_rows:
+                c.execute("UPDATE locations SET userID = ? WHERE location_id = ?",
+                          (normalize_node_id(raw_userID), location_id))
+            if legacy_rows:
+                logger.debug(f"Location: Normalized {len(legacy_rows)} legacy userID value(s) to !hex format")
         else:
             # Table doesn't exist, create it without UNIQUE constraint
             c.execute('''CREATE TABLE locations
@@ -1445,9 +1457,10 @@ def save_location_to_db(location_name, lat, lon, description="", userID="", is_p
         conflict_info is None if no conflict, or dict with conflict details if conflict exists
     """
     try:
+        userID = normalize_node_id(userID)
         if not location_name or not location_name.strip():
             return False, "Location name cannot be empty", None
-        
+
         # Check if public locations are admin-only and user is not admin
         if is_public and get_public_location_admin_manage():
             from modules.system import isNodeAdmin
@@ -1519,10 +1532,11 @@ def get_location_from_db(location_name, userID=None):
         - None if not found
     """
     try:
+        userID = normalize_node_id(userID)
         conn = sqlite3.connect(my_settings.locations_db)
         c = conn.cursor()
         location_name_clean = location_name.strip()
-        
+
         # First, try to get user's private location
         if userID:
             c.execute('''SELECT location_name, latitude, longitude, altitude, description, userID, is_public, created_date, created_time
@@ -1614,9 +1628,10 @@ def list_locations_from_db(userID=None):
         - All public locations
     """
     try:
+        userID = normalize_node_id(userID)
         conn = sqlite3.connect(my_settings.locations_db)
         c = conn.cursor()
-        
+
         if userID:
             # Get user's private locations and all public locations
             c.execute('''SELECT location_name, latitude, longitude, altitude, description, is_public, created_date
@@ -1660,13 +1675,14 @@ def delete_location_from_db(location_name, userID=""):
         (success, message)
     """
     try:
+        userID = normalize_node_id(userID)
         if not location_name or not location_name.strip():
             return False, "Location name cannot be empty"
-        
+
         conn = sqlite3.connect(my_settings.locations_db)
         c = conn.cursor()
         location_name_clean = location_name.strip()
-        
+
         # Check if location exists - prioritize user's private location, then public
         # First try to get user's private location
         c.execute('''SELECT location_id, userID, is_public FROM locations 
@@ -1703,7 +1719,7 @@ def delete_location_from_db(location_name, userID=""):
             is_admin = isNodeAdmin(userID)
         
         # Check if user owns this location
-        is_owner = (str(location_userID) == str(userID))
+        is_owner = (normalize_node_id(location_userID) == userID)
         
         # Determine if deletion is allowed
         can_delete = False
@@ -1772,6 +1788,7 @@ def log_locationData_toMap(userID, location, message):
     Logs location data to a CSV file for meshing purposes.
     Returns True if successful, False otherwise.
     """
+    userID = normalize_node_id(userID)
     lat, lon = location
     if lat is None or lon is None or lat == 0.0 or lon == 0.0:
         return False
