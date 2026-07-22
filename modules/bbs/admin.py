@@ -29,7 +29,6 @@ def handle_admin_help():
         "ban <nodeid> [reason]\n"
         "unban <nodeid>\n"
         "banlist\n"
-        "bbsdelete <id>\n"
         "maildelete <id>\n"
         "chandel <id>\n"
         "bbsstats"
