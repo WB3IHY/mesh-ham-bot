@@ -525,6 +525,54 @@ def handle_wxcall(message_from_id, deviceID, message, cmd='wx'):
         return f"{callsign.upper()} QTH: {city_state}\n{weather}"
     return weather
 
+def handle_riverFlow(message, message_from_id, deviceID, vox=False):
+    # River Flow from NOAA or Open-Meteo
+    if vox:
+        location = (my_settings.latitudeValue, my_settings.longitudeValue)
+        message = "riverflow"
+    else:
+        location = get_node_location(message_from_id, deviceID, require_known=True)
+        if location is None:
+            return my_settings.NO_DATA_NOGPS
+    msg_lower = message.lower()
+    if "riverflow " in msg_lower:
+        user_input = msg_lower.split("riverflow ", 1)[1].strip()
+        if user_input:
+            userRiver = [r.strip() for r in user_input.split(",") if r.strip()]
+        else:
+            userRiver = riverListDefault
+    else:
+        userRiver = riverListDefault
+
+    if use_meteo_wxApi:
+        return get_flood_openmeteo(location[0], location[1])
+    else:
+        msg = ""
+        for river in userRiver:
+            msg += get_flood_noaa(location[0], location[1], river)
+        return msg
+
+def handle_emergency_alerts(message, message_from_id, deviceID):
+    if my_settings.enableDEalerts:
+        # nina Alerts
+        return get_nina_alerts()
+    location = get_node_location(message_from_id, deviceID, require_known=True)
+    if location is None:
+        return my_settings.NO_DATA_NOGPS
+    if message.lower().startswith("ealert"):
+        # Detailed alert FEMA
+        return getIpawsAlert(str(location[0]), str(location[1]))
+    else:
+        # Headlines only FEMA
+        return getIpawsAlert(str(location[0]), str(location[1]), shortAlerts=True)
+
+def handleEarthquake(message, message_from_id, deviceID):
+    location = get_node_location(message_from_id, deviceID, require_known=True)
+    if "earthquake" in message.lower():
+        if location is None:
+            return my_settings.NO_DATA_NOGPS
+        return checkUSGSEarthQuake(str(location[0]), str(location[1]))
+
 def handleNews(message_from_id, deviceID, message, isDM):
     news = ''
     if "?" in message.lower():
