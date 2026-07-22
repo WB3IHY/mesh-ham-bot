@@ -641,7 +641,9 @@ def handle_satpass(message_from_id, deviceID, message='', vox=False):
         location = (my_settings.latitudeValue, my_settings.longitudeValue)
         message = 'satpass'
     else:
-        location = get_node_location(message_from_id, deviceID)
+        location = get_node_location(message_from_id, deviceID, require_known=True)
+        if location is None:
+            return my_settings.NO_DATA_NOGPS
     passes = ''
     satList = my_settings.satListConfig
     message = message.lower()
@@ -725,7 +727,9 @@ def handle_sun(message_from_id, deviceID, channel_number, vox=False):
     if vox:
         # return a default message if vox is enabled
         return get_sun(str(my_settings.latitudeValue), str(my_settings.longitudeValue))
-    location = get_node_location(message_from_id, deviceID, channel_number)
+    location = get_node_location(message_from_id, deviceID, channel_number, require_known=True)
+    if location is None:
+        return my_settings.NO_DATA_NOGPS
     return get_sun(str(location[0]), str(location[1]))
 
 def sysinfo(message, message_from_id, deviceID, isDM):
@@ -847,7 +851,9 @@ def handle_history(message, nodeid, deviceID, isDM, lheard=False):
     return msg
 
 def handle_whereami(message_from_id, deviceID, channel_number):
-    location = get_node_location(message_from_id, deviceID, channel_number)
+    location = get_node_location(message_from_id, deviceID, channel_number, require_known=True)
+    if location is None:
+        return my_settings.NO_DATA_NOGPS
     # check api_throttle
     check_throttle = api_throttle(message_from_id, deviceID, apiName='whereami')
     if check_throttle:
@@ -855,11 +861,15 @@ def handle_whereami(message_from_id, deviceID, channel_number):
     return where_am_i(str(location[0]), str(location[1]))
 
 def handle_grid(message_from_id, deviceID, channel_number):
-    location = get_node_location(message_from_id, deviceID, channel_number)
+    location = get_node_location(message_from_id, deviceID, channel_number, require_known=True)
+    if location is None:
+        return my_settings.NO_DATA_NOGPS
     return get_grid_square(str(location[0]), str(location[1]))
 
 def handle_repeaterQuery(message_from_id, deviceID, channel_number):
-    location = get_node_location(message_from_id, deviceID, channel_number)
+    location = get_node_location(message_from_id, deviceID, channel_number, require_known=True)
+    if location is None:
+        return my_settings.NO_DATA_NOGPS
     # check api_throttle
     check_throttle = api_throttle(message_from_id, deviceID, apiName='repeaterQuery')
     if check_throttle:
@@ -874,13 +884,17 @@ def handle_repeaterQuery(message_from_id, deviceID, channel_number):
 def handle_tide(message_from_id, deviceID, channel_number, vox=False):
     if vox:
         return get_NOAAtide(str(my_settings.latitudeValue), str(my_settings.longitudeValue))
-    location = get_node_location(message_from_id, deviceID, channel_number)
+    location = get_node_location(message_from_id, deviceID, channel_number, require_known=True)
+    if location is None:
+        return my_settings.NO_DATA_NOGPS
     return get_NOAAtide(str(location[0]), str(location[1]))
 
 def handle_moon(message_from_id, deviceID, channel_number, vox=False):
     if vox:
         return get_moon(str(my_settings.latitudeValue), str(my_settings.longitudeValue))
-    location = get_node_location(message_from_id, deviceID, channel_number)
+    location = get_node_location(message_from_id, deviceID, channel_number, require_known=True)
+    if location is None:
+        return my_settings.NO_DATA_NOGPS
     return get_moon(str(location[0]), str(location[1]))
 
 def handle_whoami(message_from_id, deviceID, hop, snr, rssi, pkiStatus):

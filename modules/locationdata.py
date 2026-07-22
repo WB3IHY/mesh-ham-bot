@@ -1809,9 +1809,8 @@ def log_locationData_toMap(userID, location, message):
 def mapHandler(userID, deviceID, channel_number, message, snr, rssi, hop):
     from modules.system import get_node_location
     command = message[len("map"):].strip()
-    location = get_node_location(userID, deviceID)
-    lat = location[0]
-    lon = location[1]
+    location = get_node_location(userID, deviceID, require_known=True)
+    lat, lon = (location[0], location[1]) if location is not None else (None, None)
     """
     Handles 'map' commands from meshbot.
     Usage:
@@ -1869,7 +1868,7 @@ def mapHandler(userID, deviceID, channel_number, message, snr, rssi, hop):
             else:
                 description = f"Meta:{hop}"
         
-        if not location or len(location) != 2 or lat == 0 or lon == 0:
+        if location is None:
             return "🚫Location data is missing or invalid."
         
         # Get altitude for the node
@@ -1908,7 +1907,7 @@ def mapHandler(userID, deviceID, channel_number, message, snr, rssi, hop):
         
         if saved_location:
             # Calculate heading and distance from current location
-            if not location or len(location) != 2 or lat == 0 or lon == 0:
+            if location is None:
                 result = f"📍{saved_location['name']} (Public): {saved_location['lat']:.5f}, {saved_location['lon']:.5f}"
                 if saved_location.get('altitude') is not None:
                     result += f" @ {saved_location['altitude']:.1f}m"
@@ -1997,7 +1996,7 @@ def mapHandler(userID, deviceID, channel_number, message, snr, rssi, hop):
             description += f" Meta:{hop}"
 
         # location should be a tuple: (lat, lon)
-        if not location or len(location) != 2:
+        if location is None:
             return "🚫Location data is missing or invalid."
 
         success = log_locationData_toMap(userID, location, description)
@@ -2013,7 +2012,7 @@ def mapHandler(userID, deviceID, channel_number, message, snr, rssi, hop):
         
         if saved_location:
             # Calculate heading and distance from current location
-            if not location or len(location) != 2 or lat == 0 or lon == 0:
+            if location is None:
                 result = f"📍{saved_location['name']}: {saved_location['lat']:.5f}, {saved_location['lon']:.5f}"
                 if saved_location.get('altitude') is not None:
                     result += f" @ {saved_location['altitude']:.1f}m"
