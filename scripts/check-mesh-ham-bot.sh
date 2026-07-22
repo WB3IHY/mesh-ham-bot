@@ -22,6 +22,7 @@ fi
 # Check 2: Is the bot actually alive and processing? Look for recent persistence saves.
 # The bot writes to its log via journald; check if systemd has seen output recently.
 LAST_LOG=$(journalctl -u mesh-ham-bot --no-pager -n 1 --output=short-unix 2>/dev/null | awk '{print $1}')
+LAST_LOG=${LAST_LOG%.*}  # short-unix includes fractional seconds; bash arithmetic needs an integer
 NOW=$(date +%s)
 
 if [ -n "$LAST_LOG" ]; then
