@@ -247,7 +247,7 @@ def handle_ping(message_from_id, deviceID,  message, hop, snr, rssi, isDM, chann
     if  "?" in message and isDM:
         pingHelp = "🤖Ping Command Help:\n" \
         "🏓 Send 'ping' or 'ack' or 'test' to get a response.\n" \
-        "🏓 Send 'ping <number>' to get multiple pings in DM"
+        "🏓 Send 'ping <number>' to get multiple pings in DM\n" \
         "🏓 ping @USERID to send a Joke from the bot"
         return pingHelp
     
