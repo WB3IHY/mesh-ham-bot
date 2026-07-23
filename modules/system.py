@@ -18,6 +18,26 @@ from modules.log import logger, getPrettyTime, CustomFormatter
 from modules.bbs.db import normalize_node_id # pure string/int utility, no BBS-specific dependencies
 from modules.nodes_db import get_node, upsert_node_seen, record_pubkey_change, clear_pubkey_flag
 
+# TCPInterface._readBytes() has a special case for a clean server-side close (recv()
+# returning b''): it silently reconnects the same socket internally (new self.socket,
+# fresh _startConfig()) without ever calling _disconnected() or publishing
+# 'meshtastic.connection.lost' — so our onDisconnect()/retry_interface() never run and
+# nothing gets logged. Confirmed live: a meshtasticd restart recovered in ~1s with zero
+# log output. Wrap the method to log when this happens, purely observational — the
+# original implementation still does 100% of the actual reconnect work.
+_original_tcp_readBytes = meshtastic.tcp_interface.TCPInterface._readBytes
+
+def _readBytes_logging_silent_reconnect(self, length):
+    socket_before = self.socket
+    result = _original_tcp_readBytes(self, length)
+    if socket_before is not None and self.socket is not None and self.socket is not socket_before:
+        logger.warning(f"System: TCP socket to {self.hostname}:{self.portNumber} silently "
+                        f"reconnected (server closed cleanly; meshtastic library recovered "
+                        f"without a connection.lost event)")
+    return result
+
+meshtastic.tcp_interface.TCPInterface._readBytes = _readBytes_logging_silent_reconnect
+
 # Global Variables
 trap_list = ("cmd","cmd?","bannode","share","ackkey","adminhelp","admincallsign","adminlocation",) # base commands
 help_message = "Bot CMD?:"
