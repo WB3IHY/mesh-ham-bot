@@ -28,7 +28,12 @@ Runs on the Ionos VPS as systemd service `mesh-ham-bot`.
 - Node memory database: /root/mesh-ham-bot/data/nodes.db
 - Config: /root/mesh-ham-bot/config.ini (gitignored)
 - Watchdog: /usr/local/bin/check-mesh-ham-bot.sh (cron every 5 min)
-- Node cache: /root/mesh-nodes-cache.txt (cron every 10 min)
+- Node cache: /root/mesh-nodes-cache.txt — written by the bot itself every 10
+  min via its own open connection (`nodeCacheLoop()` in modules/system.py,
+  `[nodeCache]` in config.ini), not a cron job. A separate cron running
+  `meshtastic --nodes` used to write this file, but meshtasticd's API only
+  tolerates one TCP client and evicted the bot's own connection every time
+  that cron fired — removed for that reason.
 
 ## Architecture
 - mesh_bot.py — main entry point, command dispatch table

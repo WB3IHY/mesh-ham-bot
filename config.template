@@ -284,6 +284,18 @@ interval =
 # Process run :00,:20,:40 try and vary the 20 minute offsets to avoid collision
 time =
 
+[nodeCache]
+# periodically write a human-readable node table to disk, on the bot's own
+# already-open connection (same table meshtastic --nodes prints). Prefer this
+# over a separate cron job running `meshtastic --nodes > file`: meshtasticd's
+# API only tolerates one TCP client and evicts whoever's connected (i.e. this
+# bot) the instant anything else connects, so an external cron doing that
+# will intermittently knock the bot offline mid-send.
+enabled = True
+node_cache_path = data/mesh-nodes-cache.txt
+# seconds between writes
+node_cache_interval = 600
+
 # dx cluster `dx` command
 [dxspotter]
 enabled = True

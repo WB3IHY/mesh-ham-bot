@@ -1684,6 +1684,11 @@ async def main():
         if my_settings.dataPersistence_enabled:
             tasks.append(asyncio.create_task(dataPersistenceLoop(), name="data_persistence"))
 
+        if my_settings.node_cache_enabled:
+            tasks.append(asyncio.create_task(
+                nodeCacheLoop(my_settings.node_cache_path, my_settings.node_cache_interval),
+                name="node_cache"))
+
         if my_settings.file_monitor_enabled:
             tasks.append(asyncio.create_task(handleFileWatcher(), name="file_monitor"))
 

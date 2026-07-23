@@ -2362,6 +2362,30 @@ async def dataPersistenceLoop():
         await asyncio.sleep(dataPersistence_interval)
         saveAllData()
 
+async def nodeCacheLoop(path, interval, rxNode=1):
+    """
+    Periodically write interface{rxNode}.showNodes() to disk, on the bot's own
+    already-open connection. This replaces an external cron job that ran
+    `meshtastic --nodes > path`: meshtasticd's API tolerates only one TCP client
+    and evicts whoever's already connected (i.e. this bot) the instant anything
+    else connects, so that cron job was intermittently kicking mesh-ham-bot off
+    mid-send every time it fired — the same class of self-eviction bug fixed for
+    the watchdog's own health check (see scripts/check-mesh-ham-bot.sh).
+    """
+    logger.debug(f"System: Node cache loop started, writing to {path} every {interval}s")
+    while True:
+        try:
+            interface = globals().get(f'interface{rxNode}')
+            if interface and getattr(interface, 'nodes', None):
+                with open(path, 'w') as f:
+                    f.write("Connected to radio\n")
+                    f.write(interface.showNodes())
+                    f.write("\n")
+                logger.debug(f"System: Node cache written to {path}")
+        except Exception as e:
+            logger.warning(f"System: Error writing node cache: {e}")
+        await asyncio.sleep(interval)
+
 def exit_handler():
     # Close the interface and save all data
     logger.debug(f"System: Closing Autoresponder")

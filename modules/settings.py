@@ -112,6 +112,10 @@ if 'scheduler' not in config:
     config['scheduler'] = {'enabled': 'False'}
     config.write(open(config_file, 'w'))
 
+if 'nodeCache' not in config:
+    config['nodeCache'] = {'enabled': 'True', 'node_cache_path': 'data/mesh-nodes-cache.txt', 'node_cache_interval': '600'}
+    config.write(open(config_file, 'w'))
+
 if 'emergencyHandler' not in config:
     config['emergencyHandler'] = {'enabled': 'False', 'alert_channel': '2', 'alert_interface': '1', 'email': ''}
     config.write(open(config_file, 'w'))
@@ -384,6 +388,13 @@ try:
     schedulerTime = config['scheduler'].get('time', '') # default empty
     schedulerValue = config['scheduler'].get('value', '') # default empty
     schedulerMotd = config['scheduler'].getboolean('schedulerMotd', False) # default False
+
+    # node cache: periodic dump of interface.showNodes() to disk, on the bot's own
+    # already-open connection — replaces an external cron-run `meshtastic --nodes`,
+    # which opened a second TCP client and evicted this bot's connection every run
+    node_cache_enabled = config['nodeCache'].getboolean('enabled', True)
+    node_cache_path = config['nodeCache'].get('node_cache_path', 'data/mesh-nodes-cache.txt')
+    node_cache_interval = config.getint('nodeCache', 'node_cache_interval', fallback=600)
 
     # DX cluster spotter
     dxspotter_enabled = config['dxspotter'].getboolean('enabled', True) # default True
