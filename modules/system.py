@@ -2377,9 +2377,15 @@ async def nodeCacheLoop(path, interval, rxNode=1):
         try:
             interface = globals().get(f'interface{rxNode}')
             if interface and getattr(interface, 'nodes', None):
+                # showNodes() prints its table directly (in addition to returning it),
+                # same as getNodeFirmware()'s getMetadata() call above — capture instead
+                # of letting it spill into the systemd journal every interval.
+                output_capture = io.StringIO()
+                with contextlib.redirect_stdout(output_capture):
+                    table = interface.showNodes()
                 with open(path, 'w') as f:
                     f.write("Connected to radio\n")
-                    f.write(interface.showNodes())
+                    f.write(table)
                     f.write("\n")
                 logger.debug(f"System: Node cache written to {path}")
         except Exception as e:
