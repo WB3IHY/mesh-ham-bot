@@ -995,9 +995,15 @@ def messageTrap(msg):
                 return True
     return False
 
+# Zero-width joiner and variation selectors: legitimate parts of compound emoji
+# (e.g. U+1F937 U+200D U+2642 U+FE0F for "person shrugging: male sign") that
+# str.isprintable() otherwise rejects as Unicode format/mark characters,
+# wrongly flagging normal emoji as unsafe.
+_EMOJI_FORMAT_CHARS = (chr(0x200D), chr(0xFE0E), chr(0xFE0F))  # ZWJ, VS15, VS16
+
 def stringSafeCheck(s, fromID=0):
     # Check if a string is safe to use, no control characters or non-printable characters
-    if not all(c.isprintable() or c.isspace() for c in s):
+    if not all(c.isprintable() or c.isspace() or c in _EMOJI_FORMAT_CHARS for c in s):
         ban_hammer(fromID, reason="Non-printable character in message")
         return False # non-printable characters found
     if any(ord(c) < 32 and c not in '\n\r\t' for c in s):
@@ -1122,9 +1128,12 @@ def ban_hammer(node_id, rxInterface=None, channel=None, reason=""):
         return False  # No ban applied
 
     # If the node has exceeded the ban threshold within the time window
-    autoBanlist.append(node_id_str)
     logger.info(f"System: Node {node_id_str} exceeded auto-ban threshold with {node_entry['auto_ban_count']} messages")
     if autoBanEnabled:
+        # only add to autoBanlist when auto-ban is actually enabled: mesh_bot.py/pong_bot.py
+        # treat autoBanlist membership alone as grounds to silently drop a node's messages,
+        # with no autoBanEnabled check of their own
+        autoBanlist.append(node_id_str)
         logger.warning(f"System: Auto-banned node {node_id_str} Reason: {reason}")
         return True  # Node is now banned
 
