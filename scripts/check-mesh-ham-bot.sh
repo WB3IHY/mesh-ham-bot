@@ -58,6 +58,14 @@ if [ -n "$LAST_DISCONNECT" ]; then
             sleep 3
             systemctl start mesh-ham-bot
             echo "$TIMESTAMP | mesh-ham-bot restarted" >> "$LOGFILE"
+            exit 0
         fi
     fi
+fi
+
+# Heartbeat: every restart branch above exits before reaching here, so getting here means
+# all checks passed. Logged once/hour rather than every 5-min run so the log stays readable
+# while still proving the watchdog itself hasn't silently stopped firing.
+if [ "$(date '+%M')" = "00" ]; then
+    echo "$TIMESTAMP | Watchdog check OK" >> "$LOGFILE"
 fi
