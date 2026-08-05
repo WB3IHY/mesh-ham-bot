@@ -823,6 +823,13 @@ def get_interface(deviceID=1):
     except Exception:
         return globals().get('interface1')
 
+# U+2028 LINE SEPARATOR: joins packed list entries in send_message(). Plain
+# '\n' and even a blank line ('\n\n') were both tried first and confirmed (via
+# live test) to collapse into a run-on paragraph on our BBS client's renderer -
+# U+2028 is not whitespace by that rule, so some CSS/web-based renderers still
+# honor it as a forced line break even where "\n" gets normalized away.
+LIST_ENTRY_SEPARATOR = "\u2028"
+
 def send_message(message, ch, nodeid=0, nodeInt=1, bypassChuncking=False, reply_id=None):
     # Send a message to a channel or DM
     interface = globals()[f'interface{nodeInt}']
@@ -856,18 +863,15 @@ def send_message(message, ch, nodeid=0, nodeInt=1, bypassChuncking=False, reply_
         if isinstance(message, list):
             # Caller already split this into discrete entries (e.g. one line per
             # node). Greedily pack consecutive entries into as few outgoing
-            # messages as possible for airtime efficiency, joined by a blank
-            # line rather than messageChunker()'s single '\n' - clients that
-            # render message text as markdown collapse a lone '\n' back into
-            # a run-on paragraph (confirmed against a live screenshot), so a
-            # blank line is what actually lands each entry on its own line.
+            # messages as possible for airtime efficiency, joined by
+            # LIST_ENTRY_SEPARATOR (see its definition above for why).
             # An entry too long to fit alone is hard-split like normal
             # chunking instead of being handed to sendData() whole, which
             # would raise "Data payload too big" and abort the rest.
             message_list = []
             current = ""
             for entry in message:
-                candidate = f"{current}\n\n{entry}" if current else entry
+                candidate = f"{current}{LIST_ENTRY_SEPARATOR}{entry}" if current else entry
                 if len(candidate) <= MESSAGE_CHUNK_SIZE:
                     current = candidate
                     continue
@@ -903,19 +907,19 @@ def send_message(message, ch, nodeid=0, nodeInt=1, bypassChuncking=False, reply_
                 if nodeid == 0:
                     # Send to channel
                     if wantAck:
-                        logger.info(f"Device:{nodeInt} Channel:{ch} " + CustomFormatter.red + f"req.ACK " + f"Chunker{chunkOf} SendingChannel: " + CustomFormatter.white + m.replace('\n', ' '))
+                        logger.info(f"Device:{nodeInt} Channel:{ch} " + CustomFormatter.red + f"req.ACK " + f"Chunker{chunkOf} SendingChannel: " + CustomFormatter.white + m.replace('\n', ' ').replace(LIST_ENTRY_SEPARATOR, ' '))
                         _send_with_reply(text=m, channelIndex=ch, wantAck=True)
                     else:
-                        logger.info(f"Device:{nodeInt} Channel:{ch} " + CustomFormatter.red + f"Chunker{chunkOf} SendingChannel: " + CustomFormatter.white + m.replace('\n', ' '))
+                        logger.info(f"Device:{nodeInt} Channel:{ch} " + CustomFormatter.red + f"Chunker{chunkOf} SendingChannel: " + CustomFormatter.white + m.replace('\n', ' ').replace(LIST_ENTRY_SEPARATOR, ' '))
                         _send_with_reply(text=m, channelIndex=ch)
                 else:
                     # Send to DM
                     if wantAck:
-                        logger.info(f"Device:{nodeInt} " + CustomFormatter.red + f"req.ACK " + f"Chunker{chunkOf} Sending DM: " + CustomFormatter.white + m.replace('\n', ' ') + CustomFormatter.purple +\
+                        logger.info(f"Device:{nodeInt} " + CustomFormatter.red + f"req.ACK " + f"Chunker{chunkOf} Sending DM: " + CustomFormatter.white + m.replace('\n', ' ').replace(LIST_ENTRY_SEPARATOR, ' ') + CustomFormatter.purple +\
                                  " To: " + CustomFormatter.white + f"{get_name_from_number(nodeid, 'long', nodeInt)}")
                         _send_with_reply(text=m, channelIndex=ch, destinationId=nodeid, wantAck=True)
                     else:
-                        logger.info(f"Device:{nodeInt} " + CustomFormatter.red + f"Chunker{chunkOf} Sending DM: " + CustomFormatter.white + m.replace('\n', ' ') + CustomFormatter.purple +\
+                        logger.info(f"Device:{nodeInt} " + CustomFormatter.red + f"Chunker{chunkOf} Sending DM: " + CustomFormatter.white + m.replace('\n', ' ').replace(LIST_ENTRY_SEPARATOR, ' ') + CustomFormatter.purple +\
                                     " To: " + CustomFormatter.white + f"{get_name_from_number(nodeid, 'long', nodeInt)}")
                         _send_with_reply(text=m, channelIndex=ch, destinationId=nodeid)
 
