@@ -823,12 +823,15 @@ def get_interface(deviceID=1):
     except Exception:
         return globals().get('interface1')
 
-# U+2028 LINE SEPARATOR: joins packed list entries in send_message(). Plain
-# '\n' and even a blank line ('\n\n') were both tried first and confirmed (via
-# live test) to collapse into a run-on paragraph on our BBS client's renderer -
-# U+2028 is not whitespace by that rule, so some CSS/web-based renderers still
-# honor it as a forced line break even where "\n" gets normalized away.
-LIST_ENTRY_SEPARATOR = "\u2028"
+# Joins packed list entries in send_message(). A plain '\n' is exactly what a
+# real Shift+Enter produces in the Meshtastic app before sending, and a live
+# test confirmed the Android client renders it as a real line break. Earlier
+# testing against Home Assistant's mesh-ui dashboard showed entries collapsing
+# onto one line regardless of separator ('\n', '\n\n', and U+2028 all failed
+# identically there) - mesh-ui strips embedded line breaks when assembling a
+# message, which is a mesh-ui-side bug to fix there, not something the bot can
+# work around by choosing a different character.
+LIST_ENTRY_SEPARATOR = "\n"
 
 def send_message(message, ch, nodeid=0, nodeInt=1, bypassChuncking=False, reply_id=None):
     # Send a message to a channel or DM
@@ -907,19 +910,19 @@ def send_message(message, ch, nodeid=0, nodeInt=1, bypassChuncking=False, reply_
                 if nodeid == 0:
                     # Send to channel
                     if wantAck:
-                        logger.info(f"Device:{nodeInt} Channel:{ch} " + CustomFormatter.red + f"req.ACK " + f"Chunker{chunkOf} SendingChannel: " + CustomFormatter.white + m.replace('\n', ' ').replace(LIST_ENTRY_SEPARATOR, ' '))
+                        logger.info(f"Device:{nodeInt} Channel:{ch} " + CustomFormatter.red + f"req.ACK " + f"Chunker{chunkOf} SendingChannel: " + CustomFormatter.white + m.replace('\n', ' '))
                         _send_with_reply(text=m, channelIndex=ch, wantAck=True)
                     else:
-                        logger.info(f"Device:{nodeInt} Channel:{ch} " + CustomFormatter.red + f"Chunker{chunkOf} SendingChannel: " + CustomFormatter.white + m.replace('\n', ' ').replace(LIST_ENTRY_SEPARATOR, ' '))
+                        logger.info(f"Device:{nodeInt} Channel:{ch} " + CustomFormatter.red + f"Chunker{chunkOf} SendingChannel: " + CustomFormatter.white + m.replace('\n', ' '))
                         _send_with_reply(text=m, channelIndex=ch)
                 else:
                     # Send to DM
                     if wantAck:
-                        logger.info(f"Device:{nodeInt} " + CustomFormatter.red + f"req.ACK " + f"Chunker{chunkOf} Sending DM: " + CustomFormatter.white + m.replace('\n', ' ').replace(LIST_ENTRY_SEPARATOR, ' ') + CustomFormatter.purple +\
+                        logger.info(f"Device:{nodeInt} " + CustomFormatter.red + f"req.ACK " + f"Chunker{chunkOf} Sending DM: " + CustomFormatter.white + m.replace('\n', ' ') + CustomFormatter.purple +\
                                  " To: " + CustomFormatter.white + f"{get_name_from_number(nodeid, 'long', nodeInt)}")
                         _send_with_reply(text=m, channelIndex=ch, destinationId=nodeid, wantAck=True)
                     else:
-                        logger.info(f"Device:{nodeInt} " + CustomFormatter.red + f"Chunker{chunkOf} Sending DM: " + CustomFormatter.white + m.replace('\n', ' ').replace(LIST_ENTRY_SEPARATOR, ' ') + CustomFormatter.purple +\
+                        logger.info(f"Device:{nodeInt} " + CustomFormatter.red + f"Chunker{chunkOf} Sending DM: " + CustomFormatter.white + m.replace('\n', ' ') + CustomFormatter.purple +\
                                     " To: " + CustomFormatter.white + f"{get_name_from_number(nodeid, 'long', nodeInt)}")
                         _send_with_reply(text=m, channelIndex=ch, destinationId=nodeid)
 
