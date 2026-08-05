@@ -715,6 +715,24 @@ def handleSentinelIgnore(nodeInt=1, nodeID=0, aor=False):
         sentryIgnoreList.remove(normalize_node_id(nodeID))
         logger.info(f"System: Removed {nodeID} from sentry ignore list")
 
+def _hardSplit(text, limit):
+    """Split a single string into pieces no longer than `limit`, breaking on
+    the last space before the limit when possible (falling back to a hard cut
+    if there's no space to break on). Shared by messageChunker() and
+    send_message()'s list-packing branch so an over-length line/entry is
+    split the same way instead of ever being handed to sendData() whole and
+    risking 'Data payload too big'."""
+    pieces = []
+    while len(text) > limit:
+        split_index = text.rfind(' ', 0, limit)
+        if split_index == -1:
+            split_index = limit
+        pieces.append(text[:split_index])
+        text = text[split_index:].strip()
+    if text:
+        pieces.append(text)
+    return pieces
+
 def messageChunker(message):
     message_list = []
     try:
@@ -785,15 +803,7 @@ def messageChunker(message):
             # Ensure no chunk exceeds MESSAGE_CHUNK_SIZE
             final_message_list = []
             for chunk in message_list:
-                while len(chunk) > MESSAGE_CHUNK_SIZE:
-                    # Find the last space within the chunk size limit
-                    split_index = chunk.rfind(' ', 0, MESSAGE_CHUNK_SIZE)
-                    if split_index == -1:
-                        split_index = MESSAGE_CHUNK_SIZE
-                    final_message_list.append(chunk[:split_index])
-                    chunk = chunk[split_index:].strip()
-                if chunk:
-                    final_message_list.append(chunk)
+                final_message_list.extend(_hardSplit(chunk, MESSAGE_CHUNK_SIZE))
 
             # Calculate the total length of the message
             total_length = sum(len(chunk) for chunk in final_message_list)
@@ -843,8 +853,37 @@ def send_message(message, ch, nodeid=0, nodeInt=1, bypassChuncking=False, reply_
             # Otherwise, send as normal text message
             return interface.sendText(**kwargs)
 
+        if isinstance(message, list):
+            # Caller already split this into discrete entries (e.g. one line per
+            # node). Greedily pack consecutive entries into as few outgoing
+            # messages as possible for airtime efficiency, joined by a blank
+            # line rather than messageChunker()'s single '\n' - clients that
+            # render message text as markdown collapse a lone '\n' back into
+            # a run-on paragraph (confirmed against a live screenshot), so a
+            # blank line is what actually lands each entry on its own line.
+            # An entry too long to fit alone is hard-split like normal
+            # chunking instead of being handed to sendData() whole, which
+            # would raise "Data payload too big" and abort the rest.
+            message_list = []
+            current = ""
+            for entry in message:
+                candidate = f"{current}\n\n{entry}" if current else entry
+                if len(candidate) <= MESSAGE_CHUNK_SIZE:
+                    current = candidate
+                    continue
+                if current:
+                    message_list.append(current)
+                    current = ""
+                if len(entry) <= MESSAGE_CHUNK_SIZE:
+                    current = entry
+                else:
+                    pieces = _hardSplit(entry, MESSAGE_CHUNK_SIZE)
+                    message_list.extend(pieces[:-1])
+                    current = pieces[-1] if pieces else ""
+            if current:
+                message_list.append(current)
         # Force chunking and log if message exceeds maxBuffer
-        if len(message.encode('utf-8')) > maxBuffer:
+        elif len(message.encode('utf-8')) > maxBuffer:
             logger.debug(f"System: Message length {len(message.encode('utf-8'))} exceeds maxBuffer{maxBuffer}, forcing chunking.")
             message_list = messageChunker(message)
         elif not bypassChuncking:

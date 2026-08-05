@@ -203,7 +203,11 @@ def auto_response(message, snr, rssi, hop, pkiStatus, message_from_id, channel_n
 
     if isDM and my_settings.bbs_enabled and has_pending_mail_alert(message_from_id):
         mark_mail_alerted(message_from_id)
-        bot_response = f"📬 You have mail waiting. Reply CM to check.\n{bot_response}"
+        mail_alert = "📬 You have mail waiting. Reply CM to check."
+        if isinstance(bot_response, list):
+            bot_response = [mail_alert] + bot_response
+        else:
+            bot_response = f"{mail_alert}\n{bot_response}"
 
     return bot_response
 
@@ -930,20 +934,22 @@ def handle_lheard(message, nodeid, deviceID, isDM):
     if  "?" in message and isDM:
         return message.split("?")[0].title() + " command returns a list of the nodes that have been heard recently"
 
-    # display last heard nodes add to response
-    bot_response = "Last Heard\n"
-    bot_response += str(get_node_list(1))
+    # One list item per logical entry; send_message() packs as many as fit into
+    # each outgoing message (blank-line separated) for airtime efficiency, same
+    # as 'nodes' - see send_message()'s list branch.
+    bot_response = ["Last Heard"]
+    node_list_str = get_node_list(1)
+    if node_list_str:
+        bot_response.extend(line for line in node_list_str.split("\n") if line)
 
     # show last users of the bot with the cmdHistory list
-    history = handle_history(message, nodeid, deviceID, isDM, lheard=True)
-    if history:
-        bot_response += f'LastSeen\n{history}'
-    else:
-        # trim the last \n
-        bot_response = bot_response[:-1]
+    history_lines = handle_history(message, nodeid, deviceID, isDM, lheard=True)
+    if history_lines:
+        bot_response.append("LastSeen")
+        bot_response.extend(history_lines)
 
     # get count of nodes heard
-    bot_response += f"\n👀In Mesh: {len(seenNodes)}"
+    bot_response.append(f"👀In Mesh: {len(seenNodes)}")
 
     # bot_response += getNodeTelemetry(deviceID)
     return bot_response
@@ -956,20 +962,22 @@ def handle_nodes(message, nodeid, deviceID, isDM):
     if not nodes:
         return "No nodes known."
 
-    bot_response = f"Known Nodes: {len(nodes)}\n"
+    # One list item per node; send_message() packs as many as fit into each
+    # outgoing message (blank-line separated, so each node still lands on its
+    # own line regardless of client whitespace handling) - see its list branch.
+    bot_response = [f"Known Nodes: {len(nodes)}"]
     for long_name, short_name, hex_id, battery, last_heard in nodes:
         battery_str = f"{battery}%" if battery is not None else "?%"
         if last_heard:
             ago_str = f"{getPrettyTime(time.time() - last_heard)} ago"
         else:
             ago_str = "never"
-        bot_response += f"{long_name}, {short_name}, {hex_id}, {battery_str}, {ago_str}\n"
+        bot_response.append(f"{long_name}, {short_name}, {hex_id}, {battery_str}, {ago_str}")
 
-    return bot_response.rstrip()
+    return bot_response
 
 def handle_history(message, nodeid, deviceID, isDM, lheard=False):
     global cmdHistory, lheardCmdIgnoreNode, bbs_admin_list
-    msg = ""
     buffer = []
 
     if  "?" in message and isDM:
@@ -991,11 +999,9 @@ def handle_history(message, nodeid, deviceID, isDM, lheard=False):
         # only return the last 4 commands
         if len(buffer) > 4:
             buffer = buffer[-4:]
-        # create the message from the buffer list
-        for i in range(0, len(buffer)):
-            msg += f"{buffer[i][0]}: {buffer[i][1]} :{buffer[i][2]} ago"
-            if i < len(buffer) - 1:
-                msg += "\n" # add a new line if not the last line
+        # one list item per entry - send_message() packs these into as few
+        # outgoing messages as fit, see its list branch
+        lines = [f"{name}: {cmd} :{ago} ago" for name, cmd, ago in buffer]
     else:
         # sort the cmdHistory list by time, return the username and time into a new list which used for display
         for i in range(len(cmdHistory)):
@@ -1013,15 +1019,10 @@ def handle_history(message, nodeid, deviceID, isDM, lheard=False):
                         if buffer[j][0] == nodeName:
                             buffer[j] = (nodeName, prettyTime)
 
-        # create the message from the buffer list
-        buffer.reverse() # reverse the list to show the latest first
-        for i in range(0, len(buffer)):
-            msg += f"{buffer[i][0]}, {buffer[i][1]} ago"
-            if i < len(buffer) - 1:
-                msg += "\n" # add a new line if not the last line
-            if i > 3:
-                break # only return the last 4 nodes
-    return msg
+        # create the message from the buffer list, latest first, last 5 nodes
+        buffer.reverse()
+        lines = [f"{name}, {ago} ago" for name, ago in buffer[:5]]
+    return lines
 
 def handle_whereami(message_from_id, deviceID, channel_number):
     result = resolve_location_with_disclosure(message_from_id, deviceID, channel_number)
