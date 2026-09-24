@@ -145,7 +145,7 @@ if coastalEnabled:
 _admin_commands = ["ackkey", "adminhelp", "admincallsign", "adminlocation", "sendtest"]
 
 if bbs_enabled:
-    from modules.bbs.db import initialize_database, set_db_path, is_banned
+    from modules.bbs.db import initialize_database, set_db_path, is_banned, is_admin as db_is_admin
     from modules.bbs.commands import (
         handle_bbs_help, handle_bbs_list, handle_bbs_post,
         handle_bbs_read, handle_bbs_delete, handle_bbs_dm,
@@ -1194,7 +1194,9 @@ def load_bbsBanList():
 
 
 def isNodeAdmin(nodeID):
-    # check if the nodeID is in the bbs_admin_list
+    # check if the nodeID is in the bbs_admin_list (config.ini) or the BBS admins table
+    # (runtime adminadd/adminremove) — require_admin() already honors both, this keeps
+    # the two checks consistent so a node added via adminadd isn't refused elsewhere.
     # both sides are normalized to !hex since bbs_admin_list comes verbatim from config.ini
     # (commonly bare hex) while callers here pass the raw decimal node ID/int
     if bbs_admin_list != ['']:
@@ -1202,6 +1204,11 @@ def isNodeAdmin(nodeID):
         for admin in bbs_admin_list:
             if normalized == normalize_node_id(admin):
                 return True
+    if bbs_enabled:
+        try:
+            return bool(db_is_admin(nodeID))
+        except Exception as e:
+            logger.error(f"System: isNodeAdmin DB lookup failed for {nodeID}: {e}")
     return False
 
 def handleMultiPing(nodeID=0, deviceID=1):

@@ -50,6 +50,12 @@ restrictedResponse = "🤖only available in a Direct Message📵" # "" for none
 shareableCommands = {"wx", "wxa", "wxalert", "wxc", "wxfind", "wxcall", "sun", "moon", "tide", "mwx",
                       "solar", "hfcond", "satpass", "valert", "riverflow", "dx", "joke", "verse"}
 
+def not_authorized(node_id, cmd):
+    # Log who was refused so a failed admin attempt can be traced to a real node ID
+    # (long/short names aren't unique, so the log line alone can't identify the sender).
+    logger.info(f"System: '{cmd}' refused, not an admin: {normalize_node_id(node_id)}")
+    return "Not authorized."
+
 def auto_response(message, snr, rssi, hop, pkiStatus, message_from_id, channel_number, deviceID, isDM):
     global cmdHistory
     #Auto response to messages
@@ -84,11 +90,11 @@ def auto_response(message, snr, rssi, hop, pkiStatus, message_from_id, channel_n
     "ban": lambda: handle_ban(message, message_from_id) if require_admin(message_from_id) else "Not authorized.",
     "unban": lambda: handle_unban(message, message_from_id) if require_admin(message_from_id) else "Not authorized.",
     "banlist": lambda: handle_ban_list() if require_admin(message_from_id) else "Not authorized.",
-    "ackkey": lambda: handle_ackkey(message) if isNodeAdmin(message_from_id) else "Not authorized.",
-    "adminhelp": lambda: handle_adminhelp() if isNodeAdmin(message_from_id) else "Not authorized.",
-    "admincallsign": lambda: handle_admincallsign(message) if isNodeAdmin(message_from_id) else "Not authorized.",
-    "adminlocation": lambda: handle_adminlocation(message) if isNodeAdmin(message_from_id) else "Not authorized.",
-    "sendtest": lambda: handle_sendtest(message, message_from_id) if isNodeAdmin(message_from_id) else "Not authorized.",
+    "ackkey": lambda: handle_ackkey(message) if isNodeAdmin(message_from_id) else not_authorized(message_from_id, "ackkey"),
+    "adminhelp": lambda: handle_adminhelp() if isNodeAdmin(message_from_id) else not_authorized(message_from_id, "adminhelp"),
+    "admincallsign": lambda: handle_admincallsign(message) if isNodeAdmin(message_from_id) else not_authorized(message_from_id, "admincallsign"),
+    "adminlocation": lambda: handle_adminlocation(message) if isNodeAdmin(message_from_id) else not_authorized(message_from_id, "adminlocation"),
+    "sendtest": lambda: handle_sendtest(message, message_from_id) if isNodeAdmin(message_from_id) else not_authorized(message_from_id, "sendtest"),
     "bbsstats": lambda: handle_bbs_stats() if require_admin(message_from_id) else "Not authorized.",
     "maildelete": lambda: handle_mail_delete(message, message_from_id) if require_admin(message_from_id) else "Not authorized.",
     "chandel": lambda: handle_channel_delete(message, message_from_id) if require_admin(message_from_id) else "Not authorized.",
