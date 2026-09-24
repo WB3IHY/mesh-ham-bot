@@ -39,7 +39,7 @@ def _readBytes_logging_silent_reconnect(self, length):
 meshtastic.tcp_interface.TCPInterface._readBytes = _readBytes_logging_silent_reconnect
 
 # Global Variables
-trap_list = ("cmd","cmd?","bannode","share","ackkey","adminhelp","admincallsign","adminlocation",) # base commands
+trap_list = ("cmd","cmd?","bannode","share","ackkey","adminhelp","admincallsign","adminlocation","sendtest",) # base commands
 help_message = "Bot CMD?:"
 asyncLoop = asyncio.new_event_loop()
 main_loop = None  # set by mesh_bot.main() so onDisconnect can schedule coroutines thread-safely
@@ -142,7 +142,7 @@ if coastalEnabled:
         
 # BBS Configuration
 # Admin command list — merged into cmd?'s output only for admins (see handle_cmd in mesh_bot.py)
-_admin_commands = ["ackkey", "adminhelp", "admincallsign", "adminlocation"]
+_admin_commands = ["ackkey", "adminhelp", "admincallsign", "adminlocation", "sendtest"]
 
 if bbs_enabled:
     from modules.bbs.db import initialize_database, set_db_path, is_banned

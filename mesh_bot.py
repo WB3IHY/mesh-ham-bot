@@ -88,6 +88,7 @@ def auto_response(message, snr, rssi, hop, pkiStatus, message_from_id, channel_n
     "adminhelp": lambda: handle_adminhelp() if isNodeAdmin(message_from_id) else "Not authorized.",
     "admincallsign": lambda: handle_admincallsign(message) if isNodeAdmin(message_from_id) else "Not authorized.",
     "adminlocation": lambda: handle_adminlocation(message) if isNodeAdmin(message_from_id) else "Not authorized.",
+    "sendtest": lambda: handle_sendtest(message, message_from_id) if isNodeAdmin(message_from_id) else "Not authorized.",
     "bbsstats": lambda: handle_bbs_stats() if require_admin(message_from_id) else "Not authorized.",
     "maildelete": lambda: handle_mail_delete(message, message_from_id) if require_admin(message_from_id) else "Not authorized.",
     "chandel": lambda: handle_channel_delete(message, message_from_id) if require_admin(message_from_id) else "Not authorized.",
@@ -616,6 +617,23 @@ def handle_adminlocation(message):
     set_active_location(target, location_name)
     return f"✅ Location for {target} set to {lat},{lon} and activated."
 
+def handle_sendtest(message, message_from_id):
+    # Admin: broadcast a short test line to a channel through the same send_message()
+    # path the scheduler's daily greeting uses, to diagnose a user who reports not
+    # seeing channel broadcasts. Defaults to the scheduler's channel/interface.
+    parts = message.strip().split()
+    channel = my_settings.schedulerChannel
+    if len(parts) > 1:
+        try:
+            channel = int(parts[1])
+        except ValueError:
+            return "Usage: sendtest [channel]"
+    interface = my_settings.schedulerInterface
+    now = datetime.now().strftime("%-I:%M:%S %p")
+    sender = get_name_from_number(message_from_id, 'short', interface)
+    send_message(f"Test broadcast from {sender} at {now}. Please reply if you see this.", channel, 0, interface)
+    return f"✅ Test sent on ch{channel} via interface {interface}."
+
 def handle_adminhelp():
     # Detailed admin command reference, with argument syntax — cmd?'s admin-merged
     # list (see handle_cmd) shows admins *what* exists; this shows *how* to use it.
@@ -625,6 +643,7 @@ def handle_adminhelp():
         "adminhelp",
         "admincallsign <nodeid> <callsign>",
         "adminlocation <nodeid> <lat>,<lon> [description]",
+        "sendtest [channel]",
     ]
     if my_settings.bbs_enabled:
         lines.append(handle_admin_help())
